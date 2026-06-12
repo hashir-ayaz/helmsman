@@ -6,7 +6,18 @@ import Foundation
 actor KubeAPIClient {
     static let shared = KubeAPIClient()
 
-    private static let baseURL = "http://localhost:8080"
+    /// Base URL of the local backend. Written once at launch by `BackendProcess`
+    /// (which picks a free port for the embedded sidecar) before any request is
+    /// issued, and otherwise defaults to the standalone `make run` port. Marked
+    /// `nonisolated(unsafe)` because `streamLogs` reads it from a nonisolated
+    /// context; the only write happens at startup, before UI traffic begins.
+    nonisolated(unsafe) static var baseURL = "http://127.0.0.1:8080"
+
+    /// Points the client at a specific backend port. Call before issuing requests.
+    static func configure(port: Int) {
+        baseURL = "http://127.0.0.1:\(port)"
+    }
+
     private let decoder = JSONDecoder()
     private let session = URLSession.shared
 
@@ -148,6 +159,62 @@ actor KubeAPIClient {
                             continuation.yield(String(line.dropFirst(5)))
                         }
                         // Ignore blank separators and other SSE fields.
+                    }
+                    continuation.finish()
+                } catch {
+                    continuation.finish(throwing: error)
+                }
+            }
+            continuation.onTermination = { _ in task.cancel() }
+        }
+    }
+
+    /// Streams watch events for a resource type. Long-lived SSE; nonisolated for
+    /// the same reason as `streamLogs` — it never hops the actor per event.
+    nonisolated func streamWatch(
+        ctx: String = "_current",
+        ns: String?,
+        resource: String
+    ) -> AsyncThrowingStream<WatchEvent, Error> {
+        AsyncThrowingStream { continuation in
+            let task = Task {
+                func enc(_ s: String) -> String {
+                    s.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? s
+                }
+                let path: String
+                if let ns, !ns.isEmpty {
+                    path = "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/resources/\(enc(resource))/watch"
+                } else {
+                    path = "/api/v1/contexts/\(enc(ctx))/resources/\(enc(resource))/watch"
+                }
+                guard let url = URL(string: Self.baseURL + path) else {
+                    continuation.finish(throwing: APIError.invalidURL)
+                    return
+                }
+                var request = URLRequest(url: url)
+                request.timeoutInterval = .infinity
+                request.setValue("text/event-stream", forHTTPHeaderField: "Accept")
+
+                do {
+                    let (bytes, response) = try await URLSession.shared.bytes(for: request)
+                    if let http = response as? HTTPURLResponse, !(200...299).contains(http.statusCode) {
+                        throw APIError.from(status: http.statusCode, message: "")
+                    }
+                    let decoder = JSONDecoder()
+                    for try await line in bytes.lines {
+                        if line.hasPrefix("data: ") {
+                            let json = String(line.dropFirst(6))
+                            guard let data = json.data(using: .utf8),
+                                  let event = try? decoder.decode(WatchEvent.self, from: data)
+                            else { continue }
+                            continuation.yield(event)
+                        } else if line.hasPrefix("data:") {
+                            let json = String(line.dropFirst(5))
+                            guard let data = json.data(using: .utf8),
+                                  let event = try? decoder.decode(WatchEvent.self, from: data)
+                            else { continue }
+                            continuation.yield(event)
+                        }
                     }
                     continuation.finish()
                 } catch {
