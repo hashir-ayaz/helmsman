@@ -43,6 +43,7 @@ struct ResourceListView: View {
             actions.onMutated = { Task { await reload() } }
             selectedRowID = nil
             await reload()
+            await model.watch(ctx: app.selectedContext, ns: app.namespaceParam, resource: resource)
         }
     }
 
@@ -185,11 +186,15 @@ struct ResourceListView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup {
+            if model.isWatching {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .foregroundStyle(.green)
+                    .help("Live updates active")
+            }
             Toggle(isOn: $model.showWide) {
                 Label("Wide", systemImage: "arrow.left.and.right")
             }
             .help("Show all columns")
-
             Button {
                 Task { await reload() }
             } label: {
