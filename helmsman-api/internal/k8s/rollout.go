@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime/schema"
@@ -90,7 +91,7 @@ func RolloutUndo(ctx context.Context, dyn dynamic.Interface, ref ResourceRef, na
 		toRevision = cur - 1
 	}
 	if toRevision <= 0 {
-		return fmt.Errorf("no previous revision available")
+		return apierrors.NewBadRequest("no previous revision available")
 	}
 
 	rsList, err := dyn.Resource(replicaSetGVR).Namespace(namespace).List(ctx, metav1.ListOptions{})
@@ -112,7 +113,10 @@ func RolloutUndo(ctx context.Context, dyn dynamic.Interface, ref ResourceRef, na
 		}
 	}
 	if target == nil {
-		return fmt.Errorf("revision %d not found", toRevision)
+		return apierrors.NewNotFound(
+			schema.GroupResource{Group: "apps", Resource: "replicasets"},
+			fmt.Sprintf("revision %d", toRevision),
+		)
 	}
 
 	tmpl, found, err := unstructured.NestedMap(target.Object, "spec", "template")
