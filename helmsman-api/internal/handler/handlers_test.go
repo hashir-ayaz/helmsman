@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -11,9 +12,11 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta/testrestmapper"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	watchpkg "k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
 	"k8s.io/client-go/kubernetes/scheme"
+	k8stesting "k8s.io/client-go/testing"
 )
 
 type fakeProvider struct {
@@ -69,5 +72,34 @@ func TestResourceGet(t *testing.T) {
 
 	if rec.Code != http.StatusOK {
 		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestWatchEndpoint_SSEHeaders(t *testing.T) {
+	h := New(newFakeProvider())
+	fakeWatcher := watchpkg.NewFake()
+	fakeDynClient := h.Watch.provider.(*fakeProvider).bundle.Dynamic.(*dynamicfake.FakeDynamicClient)
+	fakeDynClient.PrependWatchReactor("*", func(_ k8stesting.Action) (bool, watchpkg.Interface, error) {
+		return true, fakeWatcher, nil
+	})
+
+	// Cancel the context before the handler runs. The Watch goroutine sees
+	// ctx.Done() immediately and closes the channel, so the handler returns
+	// synchronously without needing any sleep-based synchronization.
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	req := httptest.NewRequest(http.MethodGet, "/x", nil).WithContext(ctx)
+	req.SetPathValue("ctx", "dev")
+	req.SetPathValue("ns", "default")
+	req.SetPathValue("resource", "configmaps")
+	rec := httptest.NewRecorder()
+
+	h.Watch.Stream(rec, req)
+
+	if ct := rec.Header().Get("Content-Type"); ct != "text/event-stream" {
+		t.Errorf("Content-Type = %q, want text/event-stream", ct)
+	}
+	if rec.Code != http.StatusOK {
+		t.Errorf("status = %d, want 200", rec.Code)
 	}
 }
