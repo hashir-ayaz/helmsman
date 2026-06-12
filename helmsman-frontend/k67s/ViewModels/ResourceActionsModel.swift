@@ -22,8 +22,12 @@ final class ResourceActionsModel {
         scaleTarget = row
     }
 
-    func performScale() async {
-        guard let row = scaleTarget, let replicas = Int(replicasText.trimmingCharacters(in: .whitespaces)) else { return }
+    // The target row is passed in (captured synchronously by the alert button)
+    // rather than read from `self`: dismissing an `.alert` nils the *Target
+    // properties before this async work runs, so reading them here would always
+    // see `nil` and silently no-op.
+    func performScale(_ row: TablePayload.Row?, replicas replicasText: String) async {
+        guard let row, let replicas = Int(replicasText.trimmingCharacters(in: .whitespaces)) else { return }
         await run {
             try await KubeAPIClient.shared.scale(
                 ns: row.object.namespace ?? "", name: row.object.name, replicas: replicas
@@ -32,8 +36,8 @@ final class ResourceActionsModel {
         scaleTarget = nil
     }
 
-    func performRestart() async {
-        guard let row = restartTarget, let workload = resource?.restartWorkload else { return }
+    func performRestart(_ row: TablePayload.Row?) async {
+        guard let row, let workload = resource?.restartWorkload else { return }
         let stamp = ISO8601DateFormatter().string(from: Date())
         await run {
             try await KubeAPIClient.shared.restart(
@@ -43,8 +47,8 @@ final class ResourceActionsModel {
         restartTarget = nil
     }
 
-    func performDelete() async {
-        guard let row = deleteTarget, let resource else { return }
+    func performDelete(_ row: TablePayload.Row?) async {
+        guard let row, let resource else { return }
         await run {
             try await KubeAPIClient.shared.delete(
                 ns: row.object.namespace ?? "", resource: resource.resource, name: row.object.name

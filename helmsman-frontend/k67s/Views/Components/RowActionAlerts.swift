@@ -11,19 +11,29 @@ struct RowActionAlerts: ViewModifier {
                 TextField("Replicas", text: $actions.replicasText)
                     .labelsHidden()
                 Button("Cancel", role: .cancel) { actions.scaleTarget = nil }
-                Button("Scale") { Task { await actions.performScale() } }
+                Button("Scale") {
+                    let row = actions.scaleTarget
+                    let replicas = actions.replicasText
+                    Task { await actions.performScale(row, replicas: replicas) }
+                }
             } message: {
                 Text("Enter the desired number of replicas for \"\(actions.scaleTarget?.object.name ?? "")\".")
             }
             .alert("Restart \(actions.restartTarget?.object.name ?? "")?", isPresented: presented(\.restartTarget)) {
                 Button("Cancel", role: .cancel) { actions.restartTarget = nil }
-                Button("Restart", role: .destructive) { Task { await actions.performRestart() } }
+                Button("Restart", role: .destructive) {
+                    let row = actions.restartTarget
+                    Task { await actions.performRestart(row) }
+                }
             } message: {
                 Text("This will trigger a rolling restart of all pods.")
             }
             .alert("Delete \(actions.deleteTarget?.object.name ?? "")?", isPresented: presented(\.deleteTarget)) {
                 Button("Cancel", role: .cancel) { actions.deleteTarget = nil }
-                Button("Delete", role: .destructive) { Task { await actions.performDelete() } }
+                Button("Delete", role: .destructive) {
+                    let row = actions.deleteTarget
+                    Task { await actions.performDelete(row) }
+                }
             } message: {
                 Text("This resource will be permanently deleted.")
             }
