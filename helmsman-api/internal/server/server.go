@@ -45,6 +45,14 @@ func New(port string, h handler.Handlers) *Server {
 	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/scale", h.Actions.Scale)
 	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/restart", h.Actions.Restart)
 
+	// Suspend / Resume / CancelJob.
+	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/suspend", h.Actions.Suspend)
+	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/resume", h.Actions.Resume)
+	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/jobs/{name}/cancel", h.Actions.CancelJob)
+
+	// Node drain.
+	mux.HandleFunc("POST /api/v1/contexts/{ctx}/nodes/{name}/drain", h.Actions.DrainNode)
+
 	// Logs (SSE).
 	mux.HandleFunc("GET /api/v1/contexts/{ctx}/namespaces/{ns}/pods/{name}/log", h.Logs.Stream)
 

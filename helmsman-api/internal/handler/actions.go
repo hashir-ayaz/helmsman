@@ -89,3 +89,103 @@ func (h *ActionHandler) Restart(w http.ResponseWriter, r *http.Request) {
 	}
 	writeSuccess(w, map[string]string{"restarted": r.PathValue("name")})
 }
+
+// Suspend godoc
+//
+//	@Summary	Suspend a CronJob or Job (sets spec.suspend=true)
+//	@Tags		actions
+//	@Produce	json
+//	@Router		/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/suspend [post]
+func (h *ActionHandler) Suspend(w http.ResponseWriter, r *http.Request) {
+	b, err := bundleFor(h.provider, r)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	ref, err := resolveRef(b, r.PathValue("workload"))
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	if err := k8s.SetSuspend(r.Context(), b.Dynamic, ref, r.PathValue("ns"), r.PathValue("name"), true); err != nil {
+		h.fail(w, err)
+		return
+	}
+	writeSuccess(w, map[string]string{"suspended": r.PathValue("name")})
+}
+
+// Resume godoc
+//
+//	@Summary	Resume a suspended CronJob or Job (sets spec.suspend=false)
+//	@Tags		actions
+//	@Produce	json
+//	@Router		/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/resume [post]
+func (h *ActionHandler) Resume(w http.ResponseWriter, r *http.Request) {
+	b, err := bundleFor(h.provider, r)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	ref, err := resolveRef(b, r.PathValue("workload"))
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	if err := k8s.SetSuspend(r.Context(), b.Dynamic, ref, r.PathValue("ns"), r.PathValue("name"), false); err != nil {
+		h.fail(w, err)
+		return
+	}
+	writeSuccess(w, map[string]string{"resumed": r.PathValue("name")})
+}
+
+// CancelJob godoc
+//
+//	@Summary	Cancel a Job: suspend it and delete its running pods
+//	@Tags		actions
+//	@Produce	json
+//	@Router		/api/v1/contexts/{ctx}/namespaces/{ns}/jobs/{name}/cancel [post]
+func (h *ActionHandler) CancelJob(w http.ResponseWriter, r *http.Request) {
+	b, err := bundleFor(h.provider, r)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	ref, err := resolveRef(b, "jobs")
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	if err := k8s.CancelJob(r.Context(), b, ref, r.PathValue("ns"), r.PathValue("name")); err != nil {
+		h.fail(w, err)
+		return
+	}
+	writeSuccess(w, map[string]string{"cancelled": r.PathValue("name")})
+}
+
+type drainRequest struct {
+	GracePeriodSeconds *int64 `json:"gracePeriodSeconds"`
+}
+
+// DrainNode godoc
+//
+//	@Summary	Drain a node: cordon + evict non-daemonset pods
+//	@Tags		actions
+//	@Accept		json
+//	@Produce	json
+//	@Router		/api/v1/contexts/{ctx}/nodes/{name}/drain [post]
+func (h *ActionHandler) DrainNode(w http.ResponseWriter, r *http.Request) {
+	b, err := bundleFor(h.provider, r)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	var body drainRequest
+	_ = json.NewDecoder(r.Body).Decode(&body)
+
+	result, err := k8s.DrainNode(r.Context(), b, r.PathValue("name"), body.GracePeriodSeconds)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	writeSuccess(w, result)
+}

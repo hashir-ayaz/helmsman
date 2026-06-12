@@ -220,3 +220,49 @@ func TestRolloutPauseEndpoint(t *testing.T) {
 		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body.String())
 	}
 }
+
+func TestSuspendEndpoint(t *testing.T) {
+	h := New(newFakeProvider())
+	fakeDynClient := h.Actions.provider.(*fakeProvider).bundle.Dynamic.(*dynamicfake.FakeDynamicClient)
+	fakeDynClient.PrependReactor("patch", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "batch/v1", "kind": "CronJob",
+			"metadata": map[string]any{"name": "my-cron", "namespace": "default"},
+		}}, nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/x", nil)
+	req.SetPathValue("ctx", "dev")
+	req.SetPathValue("ns", "default")
+	req.SetPathValue("workload", "cronjobs")
+	req.SetPathValue("name", "my-cron")
+	rec := httptest.NewRecorder()
+	h.Actions.Suspend(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestResumeEndpoint(t *testing.T) {
+	h := New(newFakeProvider())
+	fakeDynClient := h.Actions.provider.(*fakeProvider).bundle.Dynamic.(*dynamicfake.FakeDynamicClient)
+	fakeDynClient.PrependReactor("patch", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "batch/v1", "kind": "CronJob",
+			"metadata": map[string]any{"name": "my-cron", "namespace": "default"},
+		}}, nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/x", nil)
+	req.SetPathValue("ctx", "dev")
+	req.SetPathValue("ns", "default")
+	req.SetPathValue("workload", "cronjobs")
+	req.SetPathValue("name", "my-cron")
+	rec := httptest.NewRecorder()
+	h.Actions.Resume(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
