@@ -89,11 +89,11 @@ actor KubeAPIClient {
         )
     }
 
-    func scale(ctx: String = "_current", ns: String, name: String, replicas: Int) async throws {
+    func scale(ctx: String = "_current", ns: String, workload: String = "deployments", name: String, replicas: Int) async throws {
         let body = try JSONSerialization.data(withJSONObject: ["replicas": replicas])
         let _: JSONValue = try await sendEnveloped(
             method: "POST",
-            path: "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/deployments/\(enc(name))/scale",
+            path: "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/\(enc(workload))/\(enc(name))/scale",
             contentType: "application/json",
             body: body
         )
@@ -106,6 +106,70 @@ actor KubeAPIClient {
             path: "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/\(enc(workload))/\(enc(name))/restart",
             contentType: "application/json",
             body: body
+        )
+    }
+
+    // MARK: - Rollout operations
+
+    func rolloutPause(ctx: String = "_current", ns: String, workload: String, name: String) async throws {
+        let _: JSONValue = try await sendEnveloped(
+            method: "POST",
+            path: "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/\(enc(workload))/\(enc(name))/rollout/pause"
+        )
+    }
+
+    func rolloutResume(ctx: String = "_current", ns: String, workload: String, name: String) async throws {
+        let _: JSONValue = try await sendEnveloped(
+            method: "POST",
+            path: "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/\(enc(workload))/\(enc(name))/rollout/resume"
+        )
+    }
+
+    func getRolloutHistory(ctx: String = "_current", ns: String, workload: String, name: String) async throws -> [RevisionEntry] {
+        try await getEnveloped("/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/\(enc(workload))/\(enc(name))/rollout/history")
+    }
+
+    func rolloutUndo(ctx: String = "_current", ns: String, workload: String, name: String, toRevision: Int64 = 0) async throws {
+        let body = try JSONSerialization.data(withJSONObject: ["toRevision": toRevision])
+        let _: JSONValue = try await sendEnveloped(
+            method: "POST",
+            path: "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/\(enc(workload))/\(enc(name))/rollout/undo",
+            contentType: "application/json",
+            body: body
+        )
+    }
+
+    // MARK: - Suspend / Resume
+
+    func suspend(ctx: String = "_current", ns: String, workload: String, name: String) async throws {
+        let _: JSONValue = try await sendEnveloped(
+            method: "POST",
+            path: "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/\(enc(workload))/\(enc(name))/suspend"
+        )
+    }
+
+    func resume(ctx: String = "_current", ns: String, workload: String, name: String) async throws {
+        let _: JSONValue = try await sendEnveloped(
+            method: "POST",
+            path: "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/\(enc(workload))/\(enc(name))/resume"
+        )
+    }
+
+    // MARK: - Job cancel
+
+    func cancelJob(ctx: String = "_current", ns: String, name: String) async throws {
+        let _: JSONValue = try await sendEnveloped(
+            method: "POST",
+            path: "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/jobs/\(enc(name))/cancel"
+        )
+    }
+
+    // MARK: - Node drain
+
+    func drainNode(ctx: String = "_current", name: String) async throws {
+        let _: JSONValue = try await sendEnveloped(
+            method: "POST",
+            path: "/api/v1/contexts/\(enc(ctx))/nodes/\(enc(name))/drain"
         )
     }
 
