@@ -41,13 +41,18 @@ internal/
   k8s/
     resolver.go             URL slug → GVR/GVK via RESTMapper
     resources.go            generic CRUD: list (Table), get, YAML, delete, patch, apply
-    actions.go              scale (replica patch), restart (pod-template annotation)
+    actions.go              scale (subresource patch), restart, suspend, cancel job
+    rollout.go              rollout history (RS inspection), undo, pause, resume
+    drain.go                DrainNode — cordon + pod eviction (skips DaemonSet/mirror pods)
+    watch.go                Watch() — goroutine-backed K8s watch channel with reconnect
     logs.go                 pod log stream (io.ReadCloser)
   handler/
     handlers.go             Handlers aggregate + bundleAndRef helper + Recoverer middleware
     resources.go            ResourceHandler (List, Get, YAML, Apply, Delete, Patch)
-    actions.go              ActionHandler (Scale, Restart)
+    actions.go              ActionHandler (Scale, Restart, Suspend, Resume, CancelJob, DrainNode)
+    rollout.go              RolloutHandler (History, Undo, Pause, Resume)
     logs.go                 LogHandler (SSE)
+    watch.go                WatchHandler (SSE watch stream with auto-reconnect)
     contexts.go             ContextHandler (list kubeconfig contexts)
     response.go             writeSuccess / writeError / writeStatus envelope
     table.go                metav1.Table → TablePayload
@@ -63,19 +68,30 @@ GET    /health
 GET    /swagger/
 
 GET    /api/v1/contexts
-POST   /api/v1/contexts/{ctx}/resources                                        apply YAML (server-side apply)
-GET    /api/v1/contexts/{ctx}/resources/{resource}                             cluster-scoped list (Table)
-GET    /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}             namespaced list (Table)
-GET    /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/{name}      get one object
-GET    /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/{name}/yaml get YAML
+POST   /api/v1/contexts/{ctx}/resources                                                   apply YAML (server-side apply)
+GET    /api/v1/contexts/{ctx}/resources/{resource}                                        cluster-scoped list (Table)
+GET    /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}                        namespaced list (Table)
+GET    /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/{name}                 get one object
+GET    /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/{name}/yaml            get YAML
 DELETE /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/{name}
-PATCH  /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/{name}      merge patch
-POST   /api/v1/contexts/{ctx}/namespaces/{ns}/deployments/{name}/scale         {"replicas": N}
-POST   /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/restart        {"restartedAt": "<RFC3339>"}
-GET    /api/v1/contexts/{ctx}/namespaces/{ns}/pods/{name}/log                  SSE log stream
+PATCH  /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/{name}                 merge patch
+GET    /api/v1/contexts/{ctx}/resources/{resource}/watch                                  SSE watch stream (cluster-scoped)
+GET    /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/watch                  SSE watch stream (namespaced)
+POST   /api/v1/contexts/{ctx}/namespaces/{ns}/deployments/{name}/scale                   {"replicas": N} — legacy path
+POST   /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/scale                    {"replicas": N} — any scalable workload
+POST   /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/restart                  {"restartedAt": "<RFC3339>"}
+GET    /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/history           revision list (sorted desc)
+POST   /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/undo             {"toRevision": N} (0 = previous)
+POST   /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/pause
+POST   /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/resume
+POST   /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/suspend                  spec.suspend = true
+POST   /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/resume                   spec.suspend = false
+POST   /api/v1/contexts/{ctx}/namespaces/{ns}/jobs/{name}/cancel                         suspend + delete active pods
+POST   /api/v1/contexts/{ctx}/nodes/{name}/drain                                          {"gracePeriodSeconds": N}
+GET    /api/v1/contexts/{ctx}/namespaces/{ns}/pods/{name}/log                            SSE log stream
 ```
 
-`{ctx}` = context name or `_current` (active context). `{resource}` = `pods`, `deployments.apps`, `virtualservices.networking.istio.io`, etc.
+`{ctx}` = context name or `_current` (active context). `{resource}` = `pods`, `deployments.apps`, `virtualservices.networking.istio.io`, etc. `{workload}` = bare kind (`deployments`, `statefulsets`, `cronjobs`, …).
 
 ### Key design decisions
 
@@ -91,11 +107,15 @@ GET    /api/v1/contexts/{ctx}/namespaces/{ns}/pods/{name}/log                  S
 
 **Restart mechanism.** Uses the same patch as `kubectl rollout restart` — stamps `kubectl.kubernetes.io/restartedAt` on the pod-template annotation. The timestamp is caller-supplied (Swift client sends `restartedAt`) to keep it deterministic.
 
-**No global write timeout.** Dropped to support long-lived log SSE streams. Per-handler deadlines are the intended approach for non-streaming routes.
+**Rollout history.** Inspects ReplicaSets owned by a Deployment (via `ownerReferences.uid`) and sorts by `deployment.kubernetes.io/revision` annotation. Rollback patches `spec.template` to match the target RS's spec.
+
+**Watch streams.** `k8s.Watch()` opens a `dynamic.Interface.Watch()`, drains `ResultChan()` with a select (so context cancellation is always responsive), reconnects on server-side close, and resets `resourceVersion` only on HTTP 410 Gone. Handlers pipe the channel to SSE.
+
+**No global write timeout.** Dropped to support long-lived SSE streams (logs + watch). Per-handler deadlines are the intended approach for non-streaming routes.
 
 ### Adding a new action
 
-Actions that don't fit the generic CRUD pattern (like scale and restart) get their own handler method in `handler/actions.go` and their own `k8s/` function. Register the route in `server/server.go`.
+Actions that don't fit the generic CRUD pattern get their own k8s function (in `k8s/actions.go` for simple patches, or a new `k8s/<feature>.go` for multi-step operations), their own handler method, and a registered route in `server/server.go`.
 
 ---
 
@@ -110,7 +130,9 @@ Actions that don't fit the generic CRUD pattern (like scale and restart) get the
 k67sApp.swift               3 windows: main, "logs", "yaml"
 ContentView.swift           root — NavigationSplitView (sidebar + list)
 Models/
-  ResourceCatalog.swift     ResourceType catalog + ResourceSection enum — edit here to add sidebar items
+  ResourceCatalog.swift     ResourceType catalog + capability flags (scaleWorkload, suspendWorkload, …)
+  RevisionEntry.swift       rollout history entry decoded from /rollout/history
+  WatchEvent.swift          SSE watch event (type, name, namespace)
   TablePayload.swift        decoded backend table: columns, rows, object stubs
   JSONValue.swift           flexible recursive JSON type for heterogeneous K8s fields
   APIResponse.swift         envelope decoder + APIError enum
@@ -120,17 +142,20 @@ Models/
   Collection+Safe.swift     safe subscript extension [safe:]
 Services/
   KubeAPIClient.swift       actor singleton — all HTTP calls; baseURL = http://localhost:8080
+  BackendProcess.swift      embedded Go sidecar lifecycle (port selection, stdin pipe, PATH widening)
 ViewModels/
   AppModel.swift            app-wide state: contexts, namespace, selected resource
-  ResourceListModel.swift   table loading, search, column visibility, status color derivation
+  ResourceListModel.swift   table loading, search, live watch stream, debounced reload (@MainActor)
   ResourceDetailModel.swift single object: JSON (eager) + YAML (lazy, only on tab switch)
-  ResourceActionsModel.swift scale/restart/delete modal coordination (@MainActor)
+  ResourceActionsModel.swift all workload actions: scale/restart/rollout/suspend/cancel/drain (@MainActor)
+  RolloutHistorySheetModel.swift  load revision history + perform rollback undo (@MainActor)
   LogStreamModel.swift      SSE streaming, 5000-line FIFO buffer, per-container switching
   YAMLEditorModel.swift     YAML load + apply, dirty tracking
 Views/
   SidebarView.swift         context/namespace pickers + resource type list
-  ResourceListView.swift    generic Table view — reused for all resource types
+  ResourceListView.swift    generic Table view — live-watch indicator, capability-driven context menu
   ResourceDetailView.swift  detail panel: Overview / Object (JSON tree) / YAML tabs
+  RolloutHistorySheet.swift revision list sheet with "Undo to this" per entry
   LogWindowView.swift       log streaming window
   YAMLEditorWindow.swift    YAML editor with ⌘S to apply
   Components/
@@ -139,16 +164,20 @@ Views/
     CodeEditorView.swift    NSTextView wrapper for code editing
     PortChipsView.swift     port number chips (Services "Port(s)" column)
     ErrorStateView.swift    error banner with retry button
-    RowActionAlerts.swift   scale/restart/delete confirmation alerts
+    RowActionAlerts.swift   all confirmation alerts + rollout history sheet, driven by ResourceActionsModel
 ```
 
 ### Key patterns
 
 **`@Observable` ViewModels.** All ViewModels use `@Observable` (not `ObservableObject`). Just mutate properties directly — no `@Published` needed.
 
-**`KubeAPIClient` is a Swift actor.** Call `KubeAPIClient.shared` from async contexts. The `streamLogs` method is `nonisolated` (long-lived SSE, never hops the actor per line).
+**`KubeAPIClient` is a Swift actor.** Call `KubeAPIClient.shared` from async contexts. The `streamLogs` and `streamWatch` methods are `nonisolated` (long-lived SSE, never hop the actor per event).
 
-**`ResourceType` catalog.** The single source of truth for what appears in the sidebar. To add a resource: add an entry to `ResourceType.all` in `ResourceCatalog.swift`. The backend needs no changes — it's fully dynamic.
+**`ResourceType` catalog.** The single source of truth for what appears in the sidebar. To add a resource: add an entry to `ResourceType.all` in `ResourceCatalog.swift`. To expose new actions for it, add the appropriate capability flag (`scaleWorkload`, `suspendWorkload`, `supportsPause`, `supportsCancel`, `supportsDrain`). The backend needs no changes — it's fully dynamic.
+
+**Live watch in every list.** `ResourceListModel.watch()` opens an SSE watch stream after the initial load and calls `scheduleReload()` (debounced 300 ms) on every event. All 20+ resource types get live updates automatically. Marked `@MainActor` to serialize payload mutations and prevent NSTableView assertion crashes during rapid concurrent reloads.
+
+**Capability-driven context menu.** `ResourceListView.rowMenu` checks `resource.scaleWorkload`, `resource.restartWorkload`, `resource.supportsPause`, `resource.supportsSuspend`, `resource.supportsCancel`, and `resource.supportsDrain` before showing each action. `RowActionAlerts` (a `ViewModifier`) presents the matching confirmation dialogs and the rollout history sheet.
 
 **`JSONValue` for everything untyped.** K8s objects and table cells are decoded as `JSONValue`. Use subscript access: `object["metadata"]?["name"]?.stringValue`. Do not introduce typed structs for specific K8s resource fields.
 
@@ -170,7 +199,8 @@ Views/
 
 - `exec` / shell into pod (requires WebSocket/SPDY)
 - Port-forward (requires bidirectional streaming)
-- Server-sent watch / live auto-refresh (currently client polling via `.task(id:)`)
+- Rollout history for StatefulSets and DaemonSets (requires ControllerRevisions, not ReplicaSets)
+- Resource event stream in the detail panel
 
 ---
 

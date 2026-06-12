@@ -60,7 +60,19 @@ const docTemplate = `{
                 "tags": [
                     "actions"
                 ],
-                "summary": "Scale a workload",
+                "summary": "Scale a workload (deployments, statefulsets, replicasets)",
+                "responses": {}
+            }
+        },
+        "/api/v1/contexts/{ctx}/namespaces/{ns}/jobs/{name}/cancel": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "actions"
+                ],
+                "summary": "Cancel a Job: suspend it and delete its running pods",
                 "responses": {}
             }
         },
@@ -73,6 +85,18 @@ const docTemplate = `{
                     "logs"
                 ],
                 "summary": "Stream pod logs (SSE)",
+                "responses": {}
+            }
+        },
+        "/api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/watch": {
+            "get": {
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "watch"
+                ],
+                "summary": "Watch resources (SSE)",
                 "responses": {}
             }
         },
@@ -145,6 +169,111 @@ const docTemplate = `{
                 "responses": {}
             }
         },
+        "/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/resume": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "actions"
+                ],
+                "summary": "Resume a suspended CronJob or Job (sets spec.suspend=false)",
+                "responses": {}
+            }
+        },
+        "/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/history": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rollout"
+                ],
+                "summary": "List rollout revision history for a workload",
+                "responses": {}
+            }
+        },
+        "/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/pause": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rollout"
+                ],
+                "summary": "Pause a Deployment rollout (sets spec.paused=true)",
+                "responses": {}
+            }
+        },
+        "/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/resume": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rollout"
+                ],
+                "summary": "Resume a paused Deployment rollout (sets spec.paused=false)",
+                "responses": {}
+            }
+        },
+        "/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/undo": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "rollout"
+                ],
+                "summary": "Roll back to a previous revision (toRevision=0 means previous)",
+                "responses": {}
+            }
+        },
+        "/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/scale": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "actions"
+                ],
+                "summary": "Scale a workload (deployments, statefulsets, replicasets)",
+                "responses": {}
+            }
+        },
+        "/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/suspend": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "actions"
+                ],
+                "summary": "Suspend a CronJob or Job (sets spec.suspend=true)",
+                "responses": {}
+            }
+        },
+        "/api/v1/contexts/{ctx}/nodes/{name}/drain": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "actions"
+                ],
+                "summary": "Drain a node: cordon + evict non-daemonset pods",
+                "responses": {}
+            }
+        },
         "/api/v1/contexts/{ctx}/resources": {
             "post": {
                 "consumes": [
@@ -205,6 +334,18 @@ const docTemplate = `{
                         }
                     }
                 }
+            }
+        },
+        "/api/v1/contexts/{ctx}/resources/{resource}/watch": {
+            "get": {
+                "produces": [
+                    "text/event-stream"
+                ],
+                "tags": [
+                    "watch"
+                ],
+                "summary": "Watch resources (SSE)",
+                "responses": {}
             }
         },
         "/api/v1/contexts/{ctx}/resources/{resource}/{name}": {

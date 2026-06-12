@@ -91,6 +91,66 @@ paths:
       summary: Rollout restart a workload
       tags:
       - actions
+  /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/resume:
+    post:
+      produces:
+      - application/json
+      responses: {}
+      summary: Resume a suspended CronJob or Job (sets spec.suspend=false)
+      tags:
+      - actions
+  /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/history:
+    get:
+      produces:
+      - application/json
+      responses: {}
+      summary: List rollout revision history for a workload
+      tags:
+      - rollout
+  /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/pause:
+    post:
+      produces:
+      - application/json
+      responses: {}
+      summary: Pause a Deployment rollout (sets spec.paused=true)
+      tags:
+      - rollout
+  /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/resume:
+    post:
+      produces:
+      - application/json
+      responses: {}
+      summary: Resume a paused Deployment rollout (sets spec.paused=false)
+      tags:
+      - rollout
+  /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/undo:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses: {}
+      summary: Roll back to a previous revision (toRevision=0 means previous)
+      tags:
+      - rollout
+  /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/scale:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses: {}
+      summary: Scale a workload (deployments, statefulsets, replicasets)
+      tags:
+      - actions
+  /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/suspend:
+    post:
+      produces:
+      - application/json
+      responses: {}
+      summary: Suspend a CronJob or Job (sets spec.suspend=true)
+      tags:
+      - actions
   /api/v1/contexts/{ctx}/namespaces/{ns}/deployments/{name}/scale:
     post:
       consumes:
@@ -98,7 +158,15 @@ paths:
       produces:
       - application/json
       responses: {}
-      summary: Scale a workload
+      summary: Scale a workload (deployments, statefulsets, replicasets)
+      tags:
+      - actions
+  /api/v1/contexts/{ctx}/namespaces/{ns}/jobs/{name}/cancel:
+    post:
+      produces:
+      - application/json
+      responses: {}
+      summary: 'Cancel a Job: suspend it and delete its running pods'
       tags:
       - actions
   /api/v1/contexts/{ctx}/namespaces/{ns}/pods/{name}/log:
@@ -145,6 +213,24 @@ paths:
       summary: Get one resource as YAML
       tags:
       - resources
+  /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/watch:
+    get:
+      produces:
+      - text/event-stream
+      responses: {}
+      summary: Watch resources (SSE)
+      tags:
+      - watch
+  /api/v1/contexts/{ctx}/nodes/{name}/drain:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses: {}
+      summary: 'Drain a node: cordon + evict non-daemonset pods'
+      tags:
+      - actions
   /api/v1/contexts/{ctx}/resources:
     post:
       consumes:
@@ -219,4 +305,12 @@ paths:
       summary: Get one resource as YAML
       tags:
       - resources
+  /api/v1/contexts/{ctx}/resources/{resource}/watch:
+    get:
+      produces:
+      - text/event-stream
+      responses: {}
+      summary: Watch resources (SSE)
+      tags:
+      - watch
 swagger: "2.0"

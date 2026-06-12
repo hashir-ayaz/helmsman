@@ -1,6 +1,6 @@
 SWAG := $(shell go env GOPATH)/bin/swag
 
-.PHONY: run build build-universal tidy docs
+.PHONY: run build build-universal tidy docs test
 
 run:
 	go run ./cmd/server
@@ -22,3 +22,6 @@ tidy:
 
 docs:
 	$(SWAG) init -g cmd/server/main.go --parseInternal -o docs
+
+test:
+	go test -race ./...
