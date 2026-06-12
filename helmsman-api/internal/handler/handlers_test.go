@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/hashir-ayaz/helmsman/helmsman-api/internal/cluster"
@@ -101,5 +102,35 @@ func TestWatchEndpoint_SSEHeaders(t *testing.T) {
 	}
 	if rec.Code != http.StatusOK {
 		t.Errorf("status = %d, want 200", rec.Code)
+	}
+}
+
+func TestScaleHandler_usesWorkloadPathParam(t *testing.T) {
+	h := New(newFakeProvider())
+	fakeDynClient := h.Actions.provider.(*fakeProvider).bundle.Dynamic.(*dynamicfake.FakeDynamicClient)
+
+	var capturedResource string
+	fakeDynClient.PrependReactor("patch", "*", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		capturedResource = action.GetResource().Resource
+		return true, &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "apps/v1", "kind": "StatefulSet",
+			"metadata": map[string]any{"name": "my-sts", "namespace": "default"},
+		}}, nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(`{"replicas":2}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.SetPathValue("ctx", "dev")
+	req.SetPathValue("ns", "default")
+	req.SetPathValue("workload", "statefulsets")
+	req.SetPathValue("name", "my-sts")
+	rec := httptest.NewRecorder()
+	h.Actions.Scale(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	if capturedResource != "statefulsets" {
+		t.Errorf("Scale used resource %q, want statefulsets", capturedResource)
 	}
 }

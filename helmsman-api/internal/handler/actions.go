@@ -21,10 +21,11 @@ type scaleRequest struct {
 
 // Scale godoc
 //
-//	@Summary	Scale a workload
+//	@Summary	Scale a workload (deployments, statefulsets, replicasets)
 //	@Tags		actions
 //	@Accept		json
 //	@Produce	json
+//	@Router		/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/scale [post]
 //	@Router		/api/v1/contexts/{ctx}/namespaces/{ns}/deployments/{name}/scale [post]
 func (h *ActionHandler) Scale(w http.ResponseWriter, r *http.Request) {
 	b, err := bundleFor(h.provider, r)
@@ -37,7 +38,12 @@ func (h *ActionHandler) Scale(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "invalid scale request")
 		return
 	}
-	ref, err := resolveRef(b, "deployments")
+	// PathValue returns "" when matched by the literal deployments/{name}/scale route.
+	workload := r.PathValue("workload")
+	if workload == "" {
+		workload = "deployments"
+	}
+	ref, err := resolveRef(b, workload)
 	if err != nil {
 		h.fail(w, err)
 		return

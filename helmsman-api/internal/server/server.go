@@ -42,6 +42,7 @@ func New(port string, h handler.Handlers) *Server {
 
 	// Actions.
 	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/deployments/{name}/scale", h.Actions.Scale)
+	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/scale", h.Actions.Scale)
 	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/restart", h.Actions.Restart)
 
 	// Logs (SSE).
