@@ -52,6 +52,12 @@ func New(port string, h handler.Handlers) *Server {
 	mux.HandleFunc("GET /api/v1/contexts/{ctx}/resources/{resource}/watch", h.Watch.Stream)
 	mux.HandleFunc("GET /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/watch", h.Watch.Stream)
 
+	// Rollout operations.
+	mux.HandleFunc("GET /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/history", h.Rollout.History)
+	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/undo", h.Rollout.Undo)
+	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/pause", h.Rollout.Pause)
+	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/resume", h.Rollout.Resume)
+
 	return &Server{
 		http: &http.Server{
 			Addr:              fmt.Sprintf(":%s", port),

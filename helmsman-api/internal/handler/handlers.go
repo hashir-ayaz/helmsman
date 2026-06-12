@@ -21,6 +21,7 @@ type Handlers struct {
 	Logs      *LogHandler
 	Contexts  *ContextHandler
 	Watch     *WatchHandler
+	Rollout   *RolloutHandler
 }
 
 // New builds the handler set from a cluster provider.
@@ -31,6 +32,7 @@ func New(p cluster.Provider) Handlers {
 		Logs:      &LogHandler{provider: p},
 		Contexts:  &ContextHandler{provider: p},
 		Watch:     &WatchHandler{provider: p},
+		Rollout:   &RolloutHandler{provider: p},
 	}
 }
 

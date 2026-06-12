@@ -13,6 +13,7 @@ import (
 	"k8s.io/apimachinery/pkg/api/meta/testrestmapper"
 	"k8s.io/apimachinery/pkg/apis/meta/v1/unstructured"
 	"k8s.io/apimachinery/pkg/runtime"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 	watchpkg "k8s.io/apimachinery/pkg/watch"
 	"k8s.io/client-go/dynamic"
 	dynamicfake "k8s.io/client-go/dynamic/fake"
@@ -32,6 +33,20 @@ func (f *fakeProvider) Bundle(string) (*cluster.ClientBundle, error) { return f.
 
 func newFakeProvider(objs ...runtime.Object) *fakeProvider {
 	dyn := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), objs...)
+	return &fakeProvider{bundle: &cluster.ClientBundle{
+		Dynamic: dyn,
+		Mapper:  testrestmapper.TestOnlyStaticRESTMapper(scheme.Scheme),
+	}}
+}
+
+// newFakeProviderWithRS creates a fake provider that can also list ReplicaSets,
+// which is required by RolloutHistory and RolloutUndo.
+func newFakeProviderWithRS(objs ...runtime.Object) *fakeProvider {
+	gvrToListKind := map[schema.GroupVersionResource]string{
+		{Group: "apps", Version: "v1", Resource: "deployments"}:  "DeploymentList",
+		{Group: "apps", Version: "v1", Resource: "replicasets"}: "ReplicaSetList",
+	}
+	dyn := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, objs...)
 	return &fakeProvider{bundle: &cluster.ClientBundle{
 		Dynamic: dyn,
 		Mapper:  testrestmapper.TestOnlyStaticRESTMapper(scheme.Scheme),
@@ -132,5 +147,76 @@ func TestScaleHandler_usesWorkloadPathParam(t *testing.T) {
 	}
 	if capturedResource != "statefulsets" {
 		t.Errorf("Scale used resource %q, want statefulsets", capturedResource)
+	}
+}
+
+func TestRolloutHistoryEndpoint(t *testing.T) {
+	deploy := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apps/v1", "kind": "Deployment",
+		"metadata": map[string]any{
+			"name": "my-deploy", "namespace": "default", "uid": "deploy-uid",
+			"annotations": map[string]any{"deployment.kubernetes.io/revision": "1"},
+		},
+	}}
+	h := New(newFakeProviderWithRS(deploy))
+
+	req := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req.SetPathValue("ctx", "dev")
+	req.SetPathValue("ns", "default")
+	req.SetPathValue("workload", "deployments")
+	req.SetPathValue("name", "my-deploy")
+	rec := httptest.NewRecorder()
+	h.Rollout.History(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestRolloutUndoEndpoint_missingRevision(t *testing.T) {
+	deploy := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apps/v1", "kind": "Deployment",
+		"metadata": map[string]any{
+			"name": "my-deploy", "namespace": "default", "uid": "deploy-uid",
+			"annotations": map[string]any{"deployment.kubernetes.io/revision": "1"},
+		},
+	}}
+	// No replicasets seeded → revision 5 not found → expect non-200.
+	h := New(newFakeProviderWithRS(deploy))
+
+	req := httptest.NewRequest(http.MethodPost, "/x", strings.NewReader(`{"toRevision":5}`))
+	req.Header.Set("Content-Type", "application/json")
+	req.SetPathValue("ctx", "dev")
+	req.SetPathValue("ns", "default")
+	req.SetPathValue("workload", "deployments")
+	req.SetPathValue("name", "my-deploy")
+	rec := httptest.NewRecorder()
+	h.Rollout.Undo(rec, req)
+
+	if rec.Code == http.StatusOK {
+		t.Errorf("expected non-200 for missing revision, got 200")
+	}
+}
+
+func TestRolloutPauseEndpoint(t *testing.T) {
+	h := New(newFakeProvider())
+	fakeDynClient := h.Rollout.provider.(*fakeProvider).bundle.Dynamic.(*dynamicfake.FakeDynamicClient)
+	fakeDynClient.PrependReactor("patch", "deployments", func(action k8stesting.Action) (bool, runtime.Object, error) {
+		return true, &unstructured.Unstructured{Object: map[string]any{
+			"apiVersion": "apps/v1", "kind": "Deployment",
+			"metadata": map[string]any{"name": "my-deploy", "namespace": "default"},
+		}}, nil
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/x", nil)
+	req.SetPathValue("ctx", "dev")
+	req.SetPathValue("ns", "default")
+	req.SetPathValue("workload", "deployments")
+	req.SetPathValue("name", "my-deploy")
+	rec := httptest.NewRecorder()
+	h.Rollout.Pause(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body.String())
 	}
 }
