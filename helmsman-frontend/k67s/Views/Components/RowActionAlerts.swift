@@ -1,13 +1,15 @@
 import SwiftUI
 
-/// Attaches the Scale / Restart / Delete confirmation modals (plus an error
-/// alert) for a resource list, driven by `ResourceActionsModel`.
+/// Attaches the Scale / Restart / Delete / Drain / CancelJob confirmation
+/// modals plus the Rollout History sheet and a generic error alert,
+/// all driven by `ResourceActionsModel`.
 struct RowActionAlerts: ViewModifier {
     @Bindable var actions: ResourceActionsModel
 
     func body(content: Content) -> some View {
         content
-            .alert("Scale Deployment", isPresented: presented(\.scaleTarget)) {
+            // Scale — title adapts to the actual resource kind.
+            .alert("Scale \(actions.resource?.title ?? "Workload")", isPresented: presented(\.scaleTarget)) {
                 TextField("Replicas", text: $actions.replicasText)
                     .labelsHidden()
                 Button("Cancel", role: .cancel) { actions.scaleTarget = nil }
@@ -19,6 +21,8 @@ struct RowActionAlerts: ViewModifier {
             } message: {
                 Text("Enter the desired number of replicas for \"\(actions.scaleTarget?.object.name ?? "")\".")
             }
+
+            // Restart
             .alert("Restart \(actions.restartTarget?.object.name ?? "")?", isPresented: presented(\.restartTarget)) {
                 Button("Cancel", role: .cancel) { actions.restartTarget = nil }
                 Button("Restart", role: .destructive) {
@@ -28,6 +32,8 @@ struct RowActionAlerts: ViewModifier {
             } message: {
                 Text("This will trigger a rolling restart of all pods.")
             }
+
+            // Delete
             .alert("Delete \(actions.deleteTarget?.object.name ?? "")?", isPresented: presented(\.deleteTarget)) {
                 Button("Cancel", role: .cancel) { actions.deleteTarget = nil }
                 Button("Delete", role: .destructive) {
@@ -37,6 +43,41 @@ struct RowActionAlerts: ViewModifier {
             } message: {
                 Text("This resource will be permanently deleted.")
             }
+
+            // Cancel Job
+            .alert("Cancel \(actions.cancelTarget?.object.name ?? "")?", isPresented: presented(\.cancelTarget)) {
+                Button("Cancel", role: .cancel) { actions.cancelTarget = nil }
+                Button("Cancel Job", role: .destructive) {
+                    let row = actions.cancelTarget
+                    Task { await actions.performCancelJob(row) }
+                }
+            } message: {
+                Text("The job will be suspended and its active pods deleted.")
+            }
+
+            // Drain Node
+            .alert("Drain \(actions.drainTarget?.object.name ?? "")?", isPresented: presented(\.drainTarget)) {
+                Button("Cancel", role: .cancel) { actions.drainTarget = nil }
+                Button("Drain", role: .destructive) {
+                    let row = actions.drainTarget
+                    Task { await actions.performDrain(row) }
+                }
+            } message: {
+                Text("The node will be cordoned and all evictable pods will be evicted.")
+            }
+
+            // Rollout History sheet
+            .sheet(item: $actions.rolloutHistoryTarget) { target in
+                RolloutHistorySheet(
+                    ctx: target.ctx,
+                    ns: target.ns,
+                    workload: target.workload,
+                    name: target.row.object.name,
+                    onUndone: actions.onMutated
+                )
+            }
+
+            // Generic error alert (last, catches all action errors)
             .alert(
                 "Action Failed",
                 isPresented: Binding(
