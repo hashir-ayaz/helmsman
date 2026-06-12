@@ -85,6 +85,7 @@ struct ResourceListView: View {
             let hasNamespace = !(row.object.namespace ?? "").isEmpty
             let canEditSingleObject = hasNamespace || resource.scope == .cluster
 
+            // ── Inspect / Logs ──────────────────────────────────────────────
             Button("Inspect") { selectedRowID = id }
 
             if isPods {
@@ -98,24 +99,68 @@ struct ResourceListView: View {
 
             Divider()
 
+            // ── Copy ────────────────────────────────────────────────────────
             Button("Copy Name") { copyToPasteboard(row.object.name) }
             Button("Copy Namespace/Name") {
                 copyToPasteboard("\(row.object.namespace ?? "")/\(row.object.name)")
             }
 
-            if resource.supportsScale || resource.restartWorkload != nil {
+            // ── Workload actions ────────────────────────────────────────────
+            let hasWorkloadActions = resource.supportsScale
+                || resource.restartWorkload != nil
+                || resource.supportsPause
+                || resource.supportsSuspend
+                || resource.supportsDrain
+
+            if hasWorkloadActions {
                 Divider()
+
                 if resource.supportsScale {
-                    Button("Scale…") { actions.beginScale(row, currentReplicas: currentReplicas(of: row)) }
+                    Button("Scale…") {
+                        actions.beginScale(row, currentReplicas: currentReplicas(of: row))
+                    }
                 }
+
                 if resource.restartWorkload != nil {
                     Button("Restart") { actions.restartTarget = row }
+                    Button("Rollout History…") {
+                        actions.rolloutHistoryTarget = RolloutHistoryTarget(
+                            row: row,
+                            ctx: app.selectedContext,
+                            ns: row.object.namespace ?? "",
+                            workload: resource.restartWorkload ?? "deployments"
+                        )
+                    }
+                }
+
+                if resource.supportsPause {
+                    Button("Pause Rollout") {
+                        Task { await actions.performRolloutPause(row) }
+                    }
+                    Button("Resume Rollout") {
+                        Task { await actions.performRolloutResume(row) }
+                    }
+                }
+
+                if resource.supportsSuspend {
+                    Button("Suspend") { Task { await actions.performSuspend(row) } }
+                    Button("Resume") { Task { await actions.performResume(row) } }
+                }
+
+                if resource.supportsDrain {
+                    Button("Drain…") { actions.drainTarget = row }
                 }
             }
 
-            if canEditSingleObject {
+            // ── Danger zone ─────────────────────────────────────────────────
+            if canEditSingleObject || resource.supportsCancel {
                 Divider()
-                Button("Delete", role: .destructive) { actions.deleteTarget = row }
+                if resource.supportsCancel {
+                    Button("Cancel Job", role: .destructive) { actions.cancelTarget = row }
+                }
+                if canEditSingleObject {
+                    Button("Delete", role: .destructive) { actions.deleteTarget = row }
+                }
             }
         }
     }
