@@ -22,18 +22,50 @@ struct ResourceType: Identifiable, Hashable, Sendable {
     /// Only pods expose the log endpoint.
     var isPods: Bool { resource == "pods" }
 
-    /// The backend scale endpoint is hardcoded to deployments.
-    var supportsScale: Bool { resource == "deployments.apps" }
+    /// The `{workload}` path segment for the scale endpoint, or `nil` if not scalable.
+    /// StatefulSets and ReplicaSets now support scale in addition to Deployments.
+    var scaleWorkload: String? {
+        switch resource {
+        case "deployments.apps":  "deployments"
+        case "statefulsets.apps": "statefulsets"
+        case "replicasets.apps":  "replicasets"
+        default: nil
+        }
+    }
+
+    /// True for any resource that exposes the scale subresource.
+    var supportsScale: Bool { scaleWorkload != nil }
 
     /// The `{workload}` path segment for rollout restart, or `nil` if not restartable.
     var restartWorkload: String? {
         switch resource {
-        case "deployments.apps": "deployments"
+        case "deployments.apps":  "deployments"
         case "statefulsets.apps": "statefulsets"
-        case "daemonsets.apps": "daemonsets"
+        case "daemonsets.apps":   "daemonsets"
         default: nil
         }
     }
+
+    /// True for Deployments only — they support rollout pause/resume via spec.paused.
+    var supportsPause: Bool { resource == "deployments.apps" }
+
+    /// The `{workload}` path segment for spec.suspend, or `nil` if unsupported.
+    var suspendWorkload: String? {
+        switch resource {
+        case "cronjobs.batch": "cronjobs"
+        case "jobs.batch":     "jobs"
+        default: nil
+        }
+    }
+
+    /// True for CronJobs and Jobs, which support spec.suspend.
+    var supportsSuspend: Bool { suspendWorkload != nil }
+
+    /// True for Jobs — cancel suspends the job and deletes its active pods.
+    var supportsCancel: Bool { resource == "jobs.batch" }
+
+    /// True for Nodes — drain cordons the node and evicts all non-daemonset pods.
+    var supportsDrain: Bool { resource == "nodes" }
 }
 
 enum ResourceSection: String, CaseIterable, Hashable, Sendable {
