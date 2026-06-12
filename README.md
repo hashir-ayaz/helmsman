@@ -1,6 +1,6 @@
 # Helmsman
 
-A native macOS Kubernetes manager. Browse every resource type, stream live logs, edit YAML, scale workloads — all against your existing kubeconfig. No cloud account. No cluster agent. No Electron.
+A native macOS Kubernetes manager. Browse every resource type, stream live logs, edit YAML, scale workloads, manage rollouts — all against your existing kubeconfig. No cloud account. No cluster agent. No Electron.
 
 **Landing page:** [helmsman-landing.vercel.app](https://helmsman-landing.vercel.app)  
 **Download:** *(DMG coming soon)*
@@ -19,10 +19,15 @@ A native macOS Kubernetes manager. Browse every resource type, stream live logs,
 
 Helmsman gives you a fast native workspace for your Kubernetes clusters:
 
-- **Browse any resource** — Pods, Deployments, Services, ConfigMaps, CRDs, and everything else. The backend is fully dynamic: no per-resource code, just the Kubernetes API.
+- **Browse any resource** — Pods, Deployments, StatefulSets, DaemonSets, Jobs, CronJobs, Services, Ingresses, ConfigMaps, Secrets, Nodes, and everything else including CRDs. The backend is fully dynamic: no per-resource code, just the Kubernetes API.
+- **Live auto-refresh** — Every resource list opens a real Kubernetes Watch stream. Changes appear automatically (no manual refresh needed). A green indicator in the toolbar shows when the watch is active.
 - **Stream live logs** — Open a dedicated log window for any pod. Filter by text, switch containers, toggle follow mode.
 - **Edit YAML** — Fetch any resource as YAML, edit it in the built-in editor, apply with ⌘S using server-side apply.
-- **Scale & restart** — Scale deployments and trigger rolling restarts (same mechanism as `kubectl rollout restart`).
+- **Scale workloads** — Scale Deployments, StatefulSets, and ReplicaSets. The context menu shows the current replica count and updates the list immediately on success.
+- **Rollout management** — Deployments, StatefulSets, and DaemonSets expose rollout actions: restart, view revision history, roll back to any previous revision, pause, and resume.
+- **Suspend & resume** — Suspend or resume CronJobs and Jobs directly from the context menu (patches `spec.suspend`).
+- **Cancel jobs** — Cancel a running Job: suspends it and deletes all its active pods in one action.
+- **Drain nodes** — Cordon a node and evict all non-DaemonSet pods with a confirmation dialog.
 - **Inspect resources** — Overview panel, collapsible JSON tree, and raw YAML tab for any selected object.
 - **Multi-context** — Switch between kubeconfig contexts from the sidebar. Works with any cluster kubectl can reach.
 
@@ -46,7 +51,8 @@ A small Go HTTP server that acts as a local proxy between the SwiftUI app and th
 - **Server-side Table format** — list endpoints request `Accept: application/json;as=Table`, which returns kubectl-identical columns for any resource including CRDs.
 - **Dynamic GVR resolution** — the URL carries a resource slug (`pods`, `deployments.apps`, `virtualservices.networking.istio.io`). The backend resolves it to a concrete GVR via the cluster's RESTMapper.
 - **Context in URL path** — `{ctx}` as a path segment keeps the server stateless. Client bundles are lazily built and cached per context.
-- **SSE log streaming** — pod logs stream line-by-line over `text/event-stream` with no global write timeout.
+- **SSE for logs and watch** — pod logs and Kubernetes Watch events both stream line-by-line over `text/event-stream`. The watch stream reconnects automatically when the API server closes it (typically every 5–10 min), tracking `resourceVersion` for continuity.
+- **Generic workload actions** — scale, restart, rollout pause/resume/undo, and suspend/resume all use `{workload}` as a path segment resolved dynamically, so no per-resource handler code is needed.
 
 **Stack:** Go 1.26 · stdlib `net/http` (1.22 routing) · `k8s.io/client-go` v0.32 · `sigs.k8s.io/yaml` · Swagger via `swaggo/swag`
 
@@ -56,8 +62,10 @@ A native macOS app written in Swift 6 and SwiftUI. All resource types share the 
 
 **Key decisions:**
 - **`@Observable` ViewModels** — no `ObservableObject` or `@Published`. Just mutate properties.
-- **Actor-based API client** — `KubeAPIClient` is a Swift `actor` singleton. Log streaming uses `AsyncThrowingStream` over `URLSession.bytes`.
+- **Actor-based API client** — `KubeAPIClient` is a Swift `actor` singleton. Log and watch streaming use `AsyncThrowingStream` over `URLSession.bytes`.
+- **Live watch in every list** — `ResourceListModel` opens a watch SSE stream after the initial load. On any event it debounces a reload (300 ms), so rapid changes coalesce into a single API call. All 20+ resource types get live updates automatically.
 - **Generic table + detail** — one `ResourceListView` and one `ResourceDetailView` render every resource type. Adding a new resource to the sidebar is one line in `ResourceCatalog.swift`.
+- **Capability-driven context menu** — `ResourceType` carries flags (`scaleWorkload`, `restartWorkload`, `suspendWorkload`, `supportsPause`, `supportsCancel`, `supportsDrain`). `ResourceListView.rowMenu` uses these to show only the actions that are valid for the selected resource type.
 - **Separate windows for logs and YAML** — opened via SwiftUI's `WindowGroup(id:for:)` with `Codable` target values.
 
 **Stack:** Swift 6 · SwiftUI · macOS 14+
@@ -118,13 +126,18 @@ helmsman-api/
     k8s/
       resolver.go                 URL slug → GVR via RESTMapper
       resources.go                list (Table), get, YAML, delete, patch, apply
-      actions.go                  scale, rollout restart
+      actions.go                  scale, restart, suspend, cancel job
+      rollout.go                  rollout history, undo, pause, resume
+      drain.go                    node cordon + pod eviction
       logs.go                     pod log streaming
+      watch.go                    Kubernetes Watch → SSE event channel
     handler/
       handlers.go                 handler aggregate + shared helpers
       resources.go                ResourceHandler (CRUD + YAML)
-      actions.go                  ActionHandler (scale, restart)
+      actions.go                  ActionHandler (scale, restart, suspend, cancel, drain)
+      rollout.go                  RolloutHandler (history, undo, pause, resume)
       logs.go                     LogHandler (SSE)
+      watch.go                    WatchHandler (SSE watch stream)
       contexts.go                 ContextHandler (list kubeconfig contexts)
       response.go                 JSON envelope helpers
       table.go                    metav1.Table → TablePayload
@@ -136,26 +149,31 @@ helmsman-frontend/k67s/
   k67sApp.swift                   app entry point, window declarations
   ContentView.swift               root NavigationSplitView
   Models/
-    ResourceCatalog.swift         sidebar resource catalog — add new types here
+    ResourceCatalog.swift         sidebar resource catalog + capability flags
+    RevisionEntry.swift           rollout history entry (decoded from API)
     TablePayload.swift            decoded server-side Table response
     JSONValue.swift               flexible JSON type for heterogeneous K8s objects
     APIResponse.swift             envelope decoder + APIError enum
+    WatchEvent.swift              SSE watch event (type, name, namespace)
   Services/
     KubeAPIClient.swift           actor API client (baseURL: localhost:8080)
+    BackendProcess.swift          embedded sidecar lifecycle manager
   ViewModels/
     AppModel.swift                contexts, namespace, selected resource
-    ResourceListModel.swift       table data, search, column visibility
+    ResourceListModel.swift       table data, search, live watch, debounce reload
     ResourceDetailModel.swift     JSON object + YAML (lazy)
-    ResourceActionsModel.swift    scale / restart / delete actions
+    ResourceActionsModel.swift    all workload actions (scale/restart/rollout/suspend/cancel/drain)
+    RolloutHistorySheetModel.swift  load history + perform undo
     LogStreamModel.swift          SSE log streaming, 5 000-line buffer
     YAMLEditorModel.swift         YAML load + server-side apply
   Views/
     SidebarView.swift             context/namespace pickers + resource list
-    ResourceListView.swift        generic table view
+    ResourceListView.swift        generic table view + live-watch indicator
     ResourceDetailView.swift      Overview / Object / YAML panel
+    RolloutHistorySheet.swift     revision list + "Undo to this" sheet
     LogWindowView.swift           log streaming window
     YAMLEditorWindow.swift        YAML editor
-    Components/                   StatusDot, JSONTreeView, PortChipsView, …
+    Components/                   StatusDot, JSONTreeView, PortChipsView, RowActionAlerts, …
 
 helmsman-landing/                 Next.js marketing site (solar-dusk theme)
 ```
@@ -178,12 +196,24 @@ Quick reference:
 | `POST` | `/api/v1/contexts/{ctx}/resources` | Apply a YAML manifest (server-side apply) |
 | `PATCH` | `/api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/{name}` | Merge patch |
 | `DELETE` | `/api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/{name}` | Delete |
-| `POST` | `/api/v1/contexts/{ctx}/namespaces/{ns}/deployments/{name}/scale` | Scale `{"replicas": N}` |
+| `GET` | `/api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/watch` | Watch stream (SSE) |
+| `GET` | `/api/v1/contexts/{ctx}/resources/{resource}/watch` | Watch stream — cluster-scoped (SSE) |
+| `POST` | `/api/v1/contexts/{ctx}/namespaces/{ns}/deployments/{name}/scale` | Scale (Deployments — legacy path) |
+| `POST` | `/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/scale` | Scale any workload (StatefulSets, ReplicaSets, …) |
 | `POST` | `/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/restart` | Rollout restart |
-| `GET` | `/api/v1/contexts/{ctx}/namespaces/{ns}/pods/{name}/log` | Stream logs (SSE) |
+| `GET` | `/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/history` | Rollout revision history |
+| `POST` | `/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/undo` | Roll back `{"toRevision": N}` (0 = previous) |
+| `POST` | `/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/pause` | Pause rollout |
+| `POST` | `/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/resume` | Resume rollout |
+| `POST` | `/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/suspend` | Suspend CronJob / Job |
+| `POST` | `/api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/resume` | Resume CronJob / Job |
+| `POST` | `/api/v1/contexts/{ctx}/namespaces/{ns}/jobs/{name}/cancel` | Cancel job (suspend + delete pods) |
+| `POST` | `/api/v1/contexts/{ctx}/nodes/{name}/drain` | Drain node `{"gracePeriodSeconds": N}` |
+| `GET` | `/api/v1/contexts/{ctx}/namespaces/{ns}/pods/{name}/log` | Stream pod logs (SSE) |
 
 `{ctx}` accepts `_current` to mean the active kubeconfig context.  
-`{resource}` accepts bare kind (`pods`) or `kind.group` (`deployments.apps`, `virtualservices.networking.istio.io`).
+`{resource}` accepts bare kind (`pods`) or `kind.group` (`deployments.apps`, `virtualservices.networking.istio.io`).  
+`{workload}` accepts bare kind (`deployments`, `statefulsets`, `cronjobs`, …).
 
 ---
 
@@ -193,21 +223,24 @@ Contributions are welcome. Here's how the codebase is organised so you can find 
 
 ### Adding a new resource type to the sidebar
 
-Edit `helmsman-frontend/k67s/Models/ResourceCatalog.swift` and add an entry to `ResourceType.all`. The backend requires no changes.
+Edit `helmsman-frontend/k67s/Models/ResourceCatalog.swift` and add an entry to `ResourceType.all`. The backend requires no changes — it is fully dynamic.
 
 ```swift
 .init(title: "HorizontalPodAutoscalers", resource: "horizontalpodautoscalers.autoscaling",
       symbol: "arrow.up.and.down", scope: .namespaced, section: .workloads),
 ```
 
+To expose new capabilities for the type (scale, suspend, etc.), add the corresponding computed property to `ResourceType` in the same file.
+
 ### Adding a new backend action
 
-Actions that don't fit the generic CRUD pattern (scale, restart) live in their own files:
+Actions that don't fit the generic CRUD pattern live in their own files:
 
-1. Add the business logic to `helmsman-api/internal/k8s/actions.go`
-2. Add the HTTP handler method to `helmsman-api/internal/handler/actions.go`
+1. Add the business logic to `helmsman-api/internal/k8s/actions.go` (simple patches) or a new `k8s/<feature>.go` file for more complex operations
+2. Add the HTTP handler method to `helmsman-api/internal/handler/actions.go` or a new `handler/<feature>.go`
 3. Register the route in `helmsman-api/internal/server/server.go`
 4. Add a Swagger annotation and run `make docs`
+5. Add the corresponding method to `KubeAPIClient.swift` and wire up the UI in `ResourceActionsModel.swift` and `ResourceListView.rowMenu`
 
 ### Running backend tests
 
@@ -222,7 +255,7 @@ Tests use `k8s.io/client-go/dynamic/fake` and `k8s.io/client-go/kubernetes/fake`
 ### Code style
 
 - **Go:** `gofmt` and `goimports`. Errors wrapped with `fmt.Errorf("context: %w", err)`.
-- **Swift:** SwiftFormat. `@Observable` for all ViewModels. No mutation of existing objects — return new values.
+- **Swift:** SwiftFormat. `@Observable` for all ViewModels. `@MainActor` on models that mutate SwiftUI state. No mutation of existing objects — return new values.
 
 ### What's not yet implemented
 
@@ -230,8 +263,8 @@ These are good areas to contribute:
 
 - [ ] `exec` / shell into a pod (requires WebSocket/SPDY)
 - [ ] Port-forward
-- [ ] Live watch / auto-refresh without polling
 - [ ] Resource event stream in the detail panel
+- [ ] Rollout history for StatefulSets and DaemonSets (currently uses ReplicaSets; StatefulSets/DaemonSets need ControllerRevisions)
 - [ ] Dark/light mode toggle in the landing page
 
 ### Opening a PR
