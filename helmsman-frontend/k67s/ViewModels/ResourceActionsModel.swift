@@ -1,5 +1,14 @@
 import SwiftUI
 
+/// Carries all context needed to open the Rollout History sheet.
+struct RolloutHistoryTarget: Identifiable {
+    let row: TablePayload.Row
+    let ctx: String
+    let ns: String
+    let workload: String
+    var id: String { row.id }
+}
+
 /// Coordinates the scale / restart / delete modals for a resource list and runs
 /// the mutations. Set `onMutated` to refresh the list after a successful change.
 @Observable
@@ -8,6 +17,9 @@ final class ResourceActionsModel {
     var scaleTarget: TablePayload.Row?
     var restartTarget: TablePayload.Row?
     var deleteTarget: TablePayload.Row?
+    var rolloutHistoryTarget: RolloutHistoryTarget?
+    var cancelTarget: TablePayload.Row?
+    var drainTarget: TablePayload.Row?
     var replicasText = ""
     var isBusy = false
     var actionError: APIError?
@@ -27,10 +39,12 @@ final class ResourceActionsModel {
     // properties before this async work runs, so reading them here would always
     // see `nil` and silently no-op.
     func performScale(_ row: TablePayload.Row?, replicas replicasText: String) async {
-        guard let row, let replicas = Int(replicasText.trimmingCharacters(in: .whitespaces)) else { return }
+        guard let row,
+              let workload = resource?.scaleWorkload,
+              let replicas = Int(replicasText.trimmingCharacters(in: .whitespaces)) else { return }
         await run {
             try await KubeAPIClient.shared.scale(
-                ns: row.object.namespace ?? "", name: row.object.name, replicas: replicas
+                ns: row.object.namespace ?? "", workload: workload, name: row.object.name, replicas: replicas
             )
         }
         scaleTarget = nil
@@ -55,6 +69,60 @@ final class ResourceActionsModel {
             )
         }
         deleteTarget = nil
+    }
+
+    func performRolloutPause(_ row: TablePayload.Row?) async {
+        guard let row, let workload = resource?.restartWorkload else { return }
+        await run {
+            try await KubeAPIClient.shared.rolloutPause(
+                ns: row.object.namespace ?? "", workload: workload, name: row.object.name
+            )
+        }
+    }
+
+    func performRolloutResume(_ row: TablePayload.Row?) async {
+        guard let row, let workload = resource?.restartWorkload else { return }
+        await run {
+            try await KubeAPIClient.shared.rolloutResume(
+                ns: row.object.namespace ?? "", workload: workload, name: row.object.name
+            )
+        }
+    }
+
+    func performSuspend(_ row: TablePayload.Row?) async {
+        guard let row, let workload = resource?.suspendWorkload else { return }
+        await run {
+            try await KubeAPIClient.shared.suspend(
+                ns: row.object.namespace ?? "", workload: workload, name: row.object.name
+            )
+        }
+    }
+
+    func performResume(_ row: TablePayload.Row?) async {
+        guard let row, let workload = resource?.suspendWorkload else { return }
+        await run {
+            try await KubeAPIClient.shared.resume(
+                ns: row.object.namespace ?? "", workload: workload, name: row.object.name
+            )
+        }
+    }
+
+    func performCancelJob(_ row: TablePayload.Row?) async {
+        guard let row else { return }
+        await run {
+            try await KubeAPIClient.shared.cancelJob(
+                ns: row.object.namespace ?? "", name: row.object.name
+            )
+        }
+        cancelTarget = nil
+    }
+
+    func performDrain(_ row: TablePayload.Row?) async {
+        guard let row else { return }
+        await run {
+            try await KubeAPIClient.shared.drainNode(name: row.object.name)
+        }
+        drainTarget = nil
     }
 
     private func run(_ operation: () async throws -> Void) async {
