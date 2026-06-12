@@ -1,0 +1,17 @@
+.DS_Store
+*.swp
+*.swo
+
+# Go API
+helmsman-api/bin/
+
+# Next.js landing
+helmsman-landing/node_modules/
+helmsman-landing/.next/
+helmsman-landing/out/
+
+# Xcode
+helmsman-frontend/**/DerivedData/
+helmsman-frontend/**/build/
+*.xcuserstate
+*.xcuserdata/

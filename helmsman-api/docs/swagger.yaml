@@ -1,0 +1,222 @@
+basePath: /
+definitions:
+  cluster.ContextInfo:
+    properties:
+      cluster:
+        type: string
+      isCurrent:
+        type: boolean
+      name:
+        type: string
+      namespace:
+        type: string
+    type: object
+  handler.APIResponse:
+    properties:
+      data: {}
+      error:
+        type: string
+    type: object
+  handler.RowObject:
+    properties:
+      name:
+        type: string
+      namespace:
+        type: string
+      uid:
+        type: string
+    type: object
+  handler.TableColumn:
+    properties:
+      name:
+        type: string
+      priority:
+        type: integer
+      type:
+        type: string
+    type: object
+  handler.TablePayload:
+    properties:
+      columns:
+        items:
+          $ref: '#/definitions/handler.TableColumn'
+        type: array
+      rows:
+        items:
+          $ref: '#/definitions/handler.TableRow'
+        type: array
+    type: object
+  handler.TableRow:
+    properties:
+      cells:
+        items: {}
+        type: array
+      object:
+        $ref: '#/definitions/handler.RowObject'
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: Local Kubernetes cluster management API. Connects to whichever cluster
+    your kubeconfig points at.
+  title: Helmsman API
+  version: "1.0"
+paths:
+  /api/v1/contexts:
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.APIResponse'
+            - properties:
+                data:
+                  items:
+                    $ref: '#/definitions/cluster.ContextInfo'
+                  type: array
+              type: object
+      summary: List kubeconfig contexts
+      tags:
+      - contexts
+  /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/restart:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses: {}
+      summary: Rollout restart a workload
+      tags:
+      - actions
+  /api/v1/contexts/{ctx}/namespaces/{ns}/deployments/{name}/scale:
+    post:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses: {}
+      summary: Scale a workload
+      tags:
+      - actions
+  /api/v1/contexts/{ctx}/namespaces/{ns}/pods/{name}/log:
+    get:
+      produces:
+      - text/event-stream
+      responses: {}
+      summary: Stream pod logs (SSE)
+      tags:
+      - logs
+  /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/{name}:
+    delete:
+      produces:
+      - application/json
+      responses: {}
+      summary: Delete one resource
+      tags:
+      - resources
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      summary: Get one resource
+      tags:
+      - resources
+    patch:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses: {}
+      summary: Patch one resource (merge patch)
+      tags:
+      - resources
+  /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/{name}/yaml:
+    get:
+      produces:
+      - text/plain
+      responses: {}
+      summary: Get one resource as YAML
+      tags:
+      - resources
+  /api/v1/contexts/{ctx}/resources:
+    post:
+      consumes:
+      - text/plain
+      produces:
+      - application/json
+      responses: {}
+      summary: Apply a YAML manifest (server-side apply)
+      tags:
+      - resources
+  /api/v1/contexts/{ctx}/resources/{resource}:
+    get:
+      parameters:
+      - description: Context name or _current
+        in: path
+        name: ctx
+        required: true
+        type: string
+      - description: Resource (e.g. pods, deployments.apps)
+        in: path
+        name: resource
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/handler.TablePayload'
+              type: object
+      summary: List resources (server-side table)
+      tags:
+      - resources
+  /api/v1/contexts/{ctx}/resources/{resource}/{name}:
+    delete:
+      produces:
+      - application/json
+      responses: {}
+      summary: Delete one resource
+      tags:
+      - resources
+    get:
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      summary: Get one resource
+      tags:
+      - resources
+    patch:
+      consumes:
+      - application/json
+      produces:
+      - application/json
+      responses: {}
+      summary: Patch one resource (merge patch)
+      tags:
+      - resources
+  /api/v1/contexts/{ctx}/resources/{resource}/{name}/yaml:
+    get:
+      produces:
+      - text/plain
+      responses: {}
+      summary: Get one resource as YAML
+      tags:
+      - resources
+swagger: "2.0"

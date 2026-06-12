@@ -1,9 +1,10 @@
-# Helmsman (k67s)
+# Helmsman
 
-A macOS-native Kubernetes cluster manager. Two repos live here:
+A macOS-native Kubernetes cluster manager. Monorepo layout:
 
-- `k67s-api/` — Go backend that talks to Kubernetes via kubeconfig
-- `k67s/` — SwiftUI macOS frontend that talks to the Go backend
+- `helmsman-api/` — Go backend that talks to Kubernetes via kubeconfig
+- `helmsman-frontend/` — SwiftUI macOS frontend that talks to the Go backend
+- `helmsman-landing/` — marketing site (Next.js)
 
 ---
 
@@ -11,9 +12,9 @@ A macOS-native Kubernetes cluster manager. Two repos live here:
 
 **Backend (required first):**
 ```bash
-cd k67s-api
+cd helmsman-api
 make run          # go run ./cmd/server — listens on :8080
-make build        # go build -o bin/k67s-api ./cmd/server
+make build        # go build -o bin/helmsman-api ./cmd/server
 make docs         # regenerate swagger via swaggo/swag
 make tidy         # go mod tidy
 ```
@@ -21,14 +22,14 @@ make tidy         # go mod tidy
 Config is env-based: `PORT` (default `8080`), `KUBECONFIG` (default `~/.kube/config`).
 
 **Frontend:**
-Open `k67s/k67s/k67s.xcodeproj` in Xcode and run. The app expects the backend on `http://localhost:8080` (hardcoded in `KubeAPIClient.swift`).
+Open `helmsman-frontend/k67s.xcodeproj` in Xcode and run. The app expects the backend on `http://localhost:8080` (hardcoded in `KubeAPIClient.swift`).
 
 ---
 
-## Backend (`k67s-api`)
+## Backend (`helmsman-api`)
 
 **Stack:** Go 1.26, stdlib `net/http` (1.22 routing), `k8s.io/client-go` v0.32.3, `sigs.k8s.io/yaml`, `swaggo/swag`  
-**Module:** `github.com/hashirayaz/k67s-api`
+**Module:** `github.com/hashir-ayaz/helmsman/helmsman-api`
 
 ### Package layout
 
@@ -98,7 +99,7 @@ Actions that don't fit the generic CRUD pattern (like scale and restart) get the
 
 ---
 
-## Frontend (`k67s`)
+## Frontend (`helmsman-frontend`)
 
 **Stack:** Swift 6, SwiftUI, macOS 14+  
 **Architecture:** MVVM with `@Observable` ViewModels and an `actor`-based API client
@@ -177,7 +178,7 @@ Views/
 
 **Backend:**
 ```bash
-cd k67s-api
+cd helmsman-api
 go test -race ./...
 go test -cover ./...
 ```
