@@ -15,3 +15,8 @@ helmsman-frontend/**/DerivedData/
 helmsman-frontend/**/build/
 *.xcuserstate
 *.xcuserdata/
+
+# Packaging (keep build/assets/ tracked)
+build/DerivedData/
+build/dist/
+build/.DS_Store

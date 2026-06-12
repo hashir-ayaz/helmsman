@@ -2,8 +2,10 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>com.apple.security.app-sandbox</key>
-	<true/>
+	<!-- App Sandbox is intentionally OFF. Helmsman reads ~/.kube/config and talks
+	     to arbitrary cluster API servers (often via exec credential plugins such
+	     as aws/gke/kubelogin), none of which work inside the sandbox. The app is
+	     distributed outside the Mac App Store with Developer ID + notarization. -->
 	<key>com.apple.security.network.client</key>
 	<true/>
 </dict>

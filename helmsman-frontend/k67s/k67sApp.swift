@@ -1,7 +1,10 @@
+import AppKit
 import SwiftUI
 
 @main
 struct k67sApp: App {
+    @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+
     var body: some Scene {
         WindowGroup {
             ContentView()
@@ -24,5 +27,17 @@ struct k67sApp: App {
             }
         }
         .defaultSize(width: 820, height: 680)
+    }
+}
+
+/// Owns the embedded backend lifecycle: starts the bundled `helmsman-api`
+/// sidecar at launch and tears it down on quit so no server is left orphaned.
+final class AppDelegate: NSObject, NSApplicationDelegate {
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        BackendProcess.shared.start()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        BackendProcess.shared.stop()
     }
 }
