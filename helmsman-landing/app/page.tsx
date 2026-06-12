@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { RevealOnView } from "@/components/reveal-on-view";
 
 export default function Home() {
   return (
@@ -20,7 +21,7 @@ export default function Home() {
 
 function Nav() {
   return (
-    <header className="fixed top-0 inset-x-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-md">
+    <header className="motion-nav fixed top-0 inset-x-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-md">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-6 py-4">
         <div className="flex items-center gap-2.5">
           <HelmIcon />
@@ -30,14 +31,14 @@ function Nav() {
         </div>
 
         <nav className="hidden md:flex items-center gap-8 text-xs font-medium tracking-wider uppercase text-muted-foreground">
-          <a href="#why" className="hover:text-foreground transition-colors">Why</a>
-          <a href="#features" className="hover:text-foreground transition-colors">Features</a>
-          <a href="https://github.com/hashir-ayaz/helmsman" className="hover:text-foreground transition-colors">GitHub</a>
+          <a href="#why" className="motion-link hover:text-foreground">Why</a>
+          <a href="#features" className="motion-link hover:text-foreground">Features</a>
+          <a href="https://github.com/hashir-ayaz/helmsman" className="motion-link hover:text-foreground">GitHub</a>
         </nav>
 
         <a
           href="https://github.com/hashir-ayaz/helmsman"
-          className="rounded-sm border border-primary bg-primary px-4 py-2 text-xs font-bold tracking-widest uppercase text-primary-foreground transition-opacity hover:opacity-80"
+          className="motion-btn rounded-sm border border-primary bg-primary px-4 py-2 text-xs font-bold tracking-widest uppercase text-primary-foreground hover:opacity-90"
         >
           View on GitHub
         </a>
@@ -56,23 +57,23 @@ function Hero() {
         aria-hidden
         className="pointer-events-none absolute inset-0 flex items-start justify-center"
       >
-        <div className="h-[500px] w-[900px] rounded-full bg-primary/10 blur-[120px] -translate-y-1/3" />
+        <div className="motion-glow h-[500px] w-[900px] rounded-full bg-primary/10 blur-[120px] -translate-y-1/3" />
       </div>
 
       <div className="relative mx-auto max-w-6xl px-6">
         {/* Eyebrow */}
-        <p className="mb-6 font-mono text-xs font-medium tracking-[0.3em] uppercase text-primary">
+        <p className="motion-hero-item mb-6 font-mono text-xs font-medium tracking-[0.3em] uppercase text-primary">
           // Native macOS
         </p>
 
         {/* Headline */}
-        <h1 className="max-w-3xl text-5xl font-bold leading-[1.1] tracking-tight text-foreground md:text-7xl">
+        <h1 className="motion-hero-item motion-hero-delay-1 max-w-3xl text-5xl font-bold leading-[1.1] tracking-tight text-foreground md:text-7xl text-balance">
           Kubernetes at your
           <br />
           fingertips.
         </h1>
 
-        <p className="mt-6 max-w-xl text-base leading-7 text-muted-foreground md:text-lg">
+        <p className="motion-hero-item motion-hero-delay-2 mt-6 max-w-xl text-base leading-7 text-muted-foreground md:text-lg text-pretty">
           A native macOS app for managing your Kubernetes clusters. Browse
           every resource type, stream live logs, edit YAML, scale workloads —
           all against your existing kubeconfig. No cloud account. No cluster
@@ -80,30 +81,30 @@ function Hero() {
         </p>
 
         {/* CTAs */}
-        <div className="mt-10 flex flex-wrap gap-4">
+        <div className="motion-hero-item motion-hero-delay-3 mt-10 flex flex-wrap gap-4">
           <a
             href="https://github.com/hashir-ayaz/helmsman"
-            className="inline-flex items-center gap-2 rounded-sm bg-primary px-6 py-3 text-sm font-bold tracking-wider uppercase text-primary-foreground transition-opacity hover:opacity-80"
+            className="motion-btn inline-flex items-center gap-2 rounded-sm bg-primary px-6 py-3 text-sm font-bold tracking-wider uppercase text-primary-foreground hover:opacity-90"
           >
             <GitHubIcon />
             View on GitHub
           </a>
           <a
             href="#features"
-            className="inline-flex items-center rounded-sm border border-border px-6 py-3 text-sm font-bold tracking-wider uppercase text-foreground transition-colors hover:bg-muted"
+            className="motion-btn inline-flex items-center rounded-sm border border-border px-6 py-3 text-sm font-bold tracking-wider uppercase text-foreground hover:bg-muted"
           >
             See Features
           </a>
         </div>
 
         {/* Install strip */}
-        <div className="mt-8 inline-flex items-center gap-3 rounded-sm border border-border bg-muted/40 px-5 py-3">
+        <div className="motion-hero-item motion-hero-delay-4 mt-8 inline-flex items-center gap-3 rounded-sm border border-border bg-muted/40 px-5 py-3">
           <span className="font-mono text-xs tracking-widest text-muted-foreground"># BACKEND</span>
           <code className="font-mono text-sm text-foreground">cd helmsman-api &amp;&amp; make run</code>
         </div>
 
         {/* App screenshot */}
-        <div className="mt-16 rounded-xl overflow-hidden border border-border/40 shadow-2xl shadow-black/40">
+        <div className="motion-screenshot mt-16 rounded-xl overflow-hidden border border-border/40 shadow-2xl shadow-black/40">
           <Image
             src="/app-screenshot.png"
             alt="Helmsman — native macOS Kubernetes manager showing pods view"
@@ -133,11 +134,13 @@ function StatsBand() {
     <div className="border-y border-border bg-muted/20">
       <div className="mx-auto max-w-6xl px-6">
         <div className="flex flex-wrap justify-between divide-x divide-border">
-          {stats.map(({ value, label }) => (
-            <div key={value} className="flex flex-col items-center px-8 py-6 gap-1">
-              <span className="font-mono text-lg font-bold text-primary">{value}</span>
-              <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">{label}</span>
-            </div>
+          {stats.map(({ value, label }, index) => (
+            <RevealOnView key={value} delay={index * 55} className="flex flex-1 min-w-[140px] justify-center">
+              <div className="flex flex-col items-center px-8 py-6 gap-1">
+                <span className="font-mono text-lg font-bold text-primary">{value}</span>
+                <span className="font-mono text-[10px] tracking-widest uppercase text-muted-foreground">{label}</span>
+              </div>
+            </RevealOnView>
           ))}
         </div>
       </div>
@@ -157,7 +160,7 @@ function WhySection() {
             <p className="mb-4 font-mono text-xs font-medium tracking-[0.3em] uppercase text-primary">
               // Private by default
             </p>
-            <h2 className="text-4xl font-bold leading-tight tracking-tight text-foreground md:text-5xl">
+            <h2 className="text-4xl font-bold leading-tight tracking-tight text-foreground md:text-5xl text-balance">
               Your cluster.
               <br />
               Your config.
@@ -199,7 +202,7 @@ function WhySection() {
           </div>
 
           {/* Terminal card */}
-          <div className="rounded-lg border border-border bg-card overflow-hidden shadow-lg">
+          <RevealOnView delay={120} className="rounded-lg border border-border bg-card overflow-hidden shadow-lg">
             <div className="flex items-center gap-2 border-b border-border px-4 py-3 bg-muted/20">
               <span className="h-2.5 w-2.5 rounded-full bg-red-500/60" />
               <span className="h-2.5 w-2.5 rounded-full bg-yellow-500/60" />
@@ -224,10 +227,10 @@ function WhySection() {
               <div className="mt-6 pt-4 border-t border-border space-y-1">
                 <p className="text-muted-foreground"># Helmsman sees all of these, instantly.</p>
                 <p className="text-primary">$ open helmsman</p>
-                <p className="text-green-500 animate-pulse">▊</p>
+                <p className="text-green-500 motion-cursor" aria-hidden="true">▊</p>
               </div>
             </div>
-          </div>
+          </RevealOnView>
         </div>
       </div>
     </section>
@@ -283,7 +286,7 @@ function FeaturesSection() {
           <p className="mb-4 font-mono text-xs font-medium tracking-[0.3em] uppercase text-primary">
             // Capabilities
           </p>
-          <h2 className="text-4xl font-bold leading-tight tracking-tight text-foreground md:text-5xl">
+          <h2 className="text-4xl font-bold leading-tight tracking-tight text-foreground md:text-5xl text-balance">
             Everything you need.
             <br />
             Nothing you don&apos;t.
@@ -291,18 +294,17 @@ function FeaturesSection() {
         </div>
 
         <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {features.map(({ tag, title, body, mono }) => (
-            <div
-              key={tag}
-              className="group flex flex-col gap-4 rounded-lg border border-border bg-card p-6 transition-colors hover:border-primary/40 hover:bg-card/80"
-            >
-              <p className="font-mono text-[10px] tracking-widest uppercase text-primary">{tag}</p>
-              <h3 className="text-lg font-bold text-foreground leading-snug">{title}</h3>
-              <p className="flex-1 text-sm leading-6 text-muted-foreground">{body}</p>
-              <code className="rounded-sm bg-muted/60 px-3 py-2 font-mono text-[10px] text-muted-foreground leading-5 break-all">
-                {mono}
-              </code>
-            </div>
+          {features.map(({ tag, title, body, mono }, index) => (
+            <RevealOnView key={tag} delay={index * 50}>
+              <div className="motion-card group flex h-full flex-col gap-4 rounded-lg border border-border bg-card p-6 hover:border-primary/40 hover:bg-card/80">
+                <p className="font-mono text-[10px] tracking-widest uppercase text-primary">{tag}</p>
+                <h3 className="text-lg font-bold text-foreground leading-snug">{title}</h3>
+                <p className="flex-1 text-sm leading-6 text-muted-foreground">{body}</p>
+                <code className="rounded-sm bg-muted/60 px-3 py-2 font-mono text-[10px] text-muted-foreground leading-5 break-all">
+                  {mono}
+                </code>
+              </div>
+            </RevealOnView>
           ))}
         </div>
       </div>
@@ -316,42 +318,44 @@ function CtaBanner() {
   return (
     <section className="py-24">
       <div className="mx-auto max-w-6xl px-6">
-        <div className="relative overflow-hidden rounded-lg border border-primary/30 bg-card p-12 text-center">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-0 flex items-center justify-center"
-          >
-            <div className="h-[300px] w-[600px] rounded-full bg-primary/10 blur-[80px]" />
-          </div>
-          <div className="relative">
-            <p className="mb-4 font-mono text-xs font-medium tracking-[0.3em] uppercase text-primary">
-              // Open source
-            </p>
-            <h2 className="text-4xl font-bold tracking-tight text-foreground md:text-5xl">
-              Start managing your cluster.
-            </h2>
-            <p className="mx-auto mt-4 max-w-md text-base text-muted-foreground">
-              Clone the repo, run the Go backend, open the Xcode project. No
-              dependencies outside your kubeconfig.
-            </p>
-
-            <div className="mt-10 flex flex-wrap justify-center gap-4">
-              <a
-                href="https://github.com/hashir-ayaz/helmsman"
-                className="inline-flex items-center gap-2 rounded-sm bg-primary px-7 py-3.5 text-sm font-bold tracking-wider uppercase text-primary-foreground transition-opacity hover:opacity-80"
-              >
-                <GitHubIcon />
-                GitHub Repository
-              </a>
+        <RevealOnView>
+          <div className="relative overflow-hidden rounded-lg border border-primary/30 bg-card p-12 text-center">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 flex items-center justify-center"
+            >
+              <div className="motion-glow h-[300px] w-[600px] rounded-full bg-primary/10 blur-[80px]" />
             </div>
+            <div className="relative">
+              <p className="mb-4 font-mono text-xs font-medium tracking-[0.3em] uppercase text-primary">
+                // Open source
+              </p>
+              <h2 className="text-4xl font-bold tracking-tight text-foreground md:text-5xl text-balance">
+                Start managing your cluster.
+              </h2>
+              <p className="mx-auto mt-4 max-w-md text-base text-muted-foreground text-pretty">
+                Clone the repo, run the Go backend, open the Xcode project. No
+                dependencies outside your kubeconfig.
+              </p>
 
-            <div className="mt-8 inline-flex flex-wrap items-center justify-center gap-4 rounded-sm border border-border bg-background/60 px-6 py-4 font-mono text-xs text-muted-foreground">
-              <span><span className="text-primary">$</span> git clone https://github.com/hashir-ayaz/helmsman</span>
-              <span className="hidden sm:inline text-border">|</span>
-              <span><span className="text-primary">$</span> cd helmsman-api &amp;&amp; make run</span>
+              <div className="mt-10 flex flex-wrap justify-center gap-4">
+                <a
+                  href="https://github.com/hashir-ayaz/helmsman"
+                  className="motion-btn inline-flex items-center gap-2 rounded-sm bg-primary px-7 py-3.5 text-sm font-bold tracking-wider uppercase text-primary-foreground hover:opacity-90"
+                >
+                  <GitHubIcon />
+                  GitHub Repository
+                </a>
+              </div>
+
+              <div className="mt-8 inline-flex flex-wrap items-center justify-center gap-4 rounded-sm border border-border bg-background/60 px-6 py-4 font-mono text-xs text-muted-foreground">
+                <span><span className="text-primary">$</span> git clone https://github.com/hashir-ayaz/helmsman</span>
+                <span className="hidden sm:inline text-border">|</span>
+                <span><span className="text-primary">$</span> cd helmsman-api &amp;&amp; make run</span>
+              </div>
             </div>
           </div>
-        </div>
+        </RevealOnView>
       </div>
     </section>
   );
@@ -368,7 +372,7 @@ function Footer() {
           <span className="font-mono text-xs tracking-widest uppercase text-muted-foreground">Helmsman</span>
         </div>
         <div className="flex gap-6 font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
-          <a href="https://github.com/hashir-ayaz/helmsman" className="hover:text-foreground transition-colors">GitHub</a>
+          <a href="https://github.com/hashir-ayaz/helmsman" className="motion-link hover:text-foreground">GitHub</a>
           <span>Go + Swift · macOS 14+</span>
         </div>
       </div>
@@ -382,7 +386,15 @@ function HelmIcon() {
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" aria-hidden="true">
       <circle cx="12" cy="12" r="3" fill="currentColor" className="text-primary" />
-      <circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="1.5" className="text-primary" strokeDasharray="3 2" />
+      <circle
+        cx="12"
+        cy="12"
+        r="9"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        className="motion-helm-orbit text-primary"
+        strokeDasharray="3 2"
+      />
       {[0, 60, 120, 180, 240, 300].map((angle) => {
         const rad = (angle * Math.PI) / 180;
         const x1 = 12 + 3 * Math.cos(rad);
