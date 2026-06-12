@@ -9,6 +9,8 @@ final class ResourceListModel {
     var error: APIError?
     var searchText = ""
     var showWide = false
+    private(set) var isWatching = false
+    private var reloadWork: Task<Void, Never>?
 
     var columns: [TablePayload.Column] {
         payload?.columns ?? []
@@ -86,6 +88,53 @@ final class ResourceListModel {
         } catch {
             self.error = .transport(error.localizedDescription)
             payload = nil
+        }
+    }
+
+    /// Runs until the enclosing Task is cancelled. Reconnects the watch stream
+    /// automatically after any error or server-side close.
+    func watch(ctx: String, ns: String?, resource: ResourceType) async {
+        isWatching = true
+        defer {
+            isWatching = false
+            reloadWork?.cancel()
+            reloadWork = nil
+        }
+        let effectiveNS = resource.scope == .cluster ? nil : ns
+        while !Task.isCancelled {
+            let stream = KubeAPIClient.shared.streamWatch(
+                ctx: ctx,
+                ns: effectiveNS,
+                resource: resource.resource
+            )
+            do {
+                for try await _ in stream {
+                    scheduleReload(ctx: ctx, ns: ns, resource: resource)
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                // ignore transport errors — will reconnect after backoff
+            }
+            guard !Task.isCancelled else { return }
+            do {
+                try await Task.sleep(for: .seconds(2))
+            } catch {
+                return // cancelled during backoff
+            }
+        }
+    }
+
+    private func scheduleReload(ctx: String, ns: String?, resource: ResourceType) {
+        reloadWork?.cancel()
+        reloadWork = Task { [weak self] in
+            do {
+                try await Task.sleep(for: .milliseconds(300))
+            } catch {
+                return
+            }
+            guard let self else { return }
+            await self.load(ctx: ctx, ns: ns, resource: resource)
         }
     }
 }
