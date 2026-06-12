@@ -47,6 +47,10 @@ func New(port string, h handler.Handlers) *Server {
 	// Logs (SSE).
 	mux.HandleFunc("GET /api/v1/contexts/{ctx}/namespaces/{ns}/pods/{name}/log", h.Logs.Stream)
 
+	// Watch (SSE).
+	mux.HandleFunc("GET /api/v1/contexts/{ctx}/resources/{resource}/watch", h.Watch.Stream)
+	mux.HandleFunc("GET /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/watch", h.Watch.Stream)
+
 	return &Server{
 		http: &http.Server{
 			Addr:              fmt.Sprintf(":%s", port),
