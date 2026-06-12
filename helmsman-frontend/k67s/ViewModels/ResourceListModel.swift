@@ -3,6 +3,7 @@ import SwiftUI
 /// Drives one generic resource list: loads a `TablePayload` and exposes the
 /// columns/rows the table renders, with search and a wide-column toggle.
 @Observable
+@MainActor
 final class ResourceListModel {
     private(set) var payload: TablePayload?
     private(set) var isLoading = false
@@ -11,6 +12,13 @@ final class ResourceListModel {
     var showWide = false
     private(set) var isWatching = false
     private var reloadWork: Task<Void, Never>?
+
+    /// Cancels any debounced watch-triggered reload. Call before an
+    /// immediate mutation-triggered reload to prevent a stale second load.
+    func cancelPendingReload() {
+        reloadWork?.cancel()
+        reloadWork = nil
+    }
 
     var columns: [TablePayload.Column] {
         payload?.columns ?? []

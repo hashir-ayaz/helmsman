@@ -40,7 +40,17 @@ struct ResourceListView: View {
         .rowActionAlerts(actions)
         .task(id: taskKey) {
             actions.resource = resource
-            actions.onMutated = { Task { await reload() } }
+            actions.onMutated = {
+                // Clear stale selection and cancel any pending watch-triggered
+                // reload before issuing the authoritative post-mutation reload.
+                // Without this, the watch DELETED event fires a second load()
+                // ~300 ms later; if that second load fails, payload becomes nil
+                // while selectedRowID still references the deleted row, causing
+                // an NSTableView assertion crash (invalid selection index).
+                selectedRowID = nil
+                model.cancelPendingReload()
+                Task { await reload() }
+            }
             selectedRowID = nil
             await reload()
             await model.watch(ctx: app.selectedContext, ns: app.namespaceParam, resource: resource)
