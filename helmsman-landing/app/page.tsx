@@ -114,15 +114,6 @@ function Hero() {
           </a>
         </div>
 
-        <CopyCommand
-          value={BACKEND_CMD}
-          label="Copy backend start command"
-          className="motion-hero-item motion-hero-delay-4 mt-10 rounded-sm border border-border bg-muted/40 px-5 py-3 hover:border-primary/30 hover:bg-muted/60"
-        >
-          <span className="font-mono text-xs tracking-widest text-muted-foreground"># BACKEND</span>
-          <code className="font-mono text-sm text-foreground">{BACKEND_CMD}</code>
-        </CopyCommand>
-
         <div className="motion-screenshot bold-screenshot-frame relative -mx-2 mt-20 overflow-hidden rounded-xl border border-primary/20 md:-mx-8 lg:-mx-14">
           <Image
             src="/app-screenshot.png"
