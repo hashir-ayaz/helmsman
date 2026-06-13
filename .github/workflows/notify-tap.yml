@@ -1,0 +1,31 @@
+name: Notify Homebrew Tap
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download DMG and compute SHA256
+        run: |
+          VERSION="${{ github.event.release.tag_name }}"
+          VERSION="${VERSION#v}"
+          curl -sL "https://github.com/hashir-ayaz/helmsman/releases/download/${{ github.event.release.tag_name }}/Helmsman.dmg" \
+            -o Helmsman.dmg
+          SHA256=$(sha256sum Helmsman.dmg | awk '{print $1}')
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "SHA256=$SHA256" >> $GITHUB_ENV
+
+      - name: Dispatch update to tap
+        uses: peter-evans/repository-dispatch@v3
+        with:
+          token: ${{ secrets.TAP_GITHUB_TOKEN }}
+          repository: hashir-ayaz/homebrew-helmsman
+          event-type: new-release
+          client-payload: |
+            {
+              "version": "${{ env.VERSION }}",
+              "sha256": "${{ env.SHA256 }}"
+            }
