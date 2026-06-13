@@ -92,8 +92,7 @@ function Hero() {
         <p className="motion-hero-item motion-hero-delay-2 mt-8 max-w-xl text-base leading-7 text-muted-foreground md:text-lg md:leading-8 text-pretty">
           A native macOS app for managing your Kubernetes clusters. Browse
           every resource type, stream live logs, edit YAML, scale workloads —
-          all against your existing kubeconfig. No cloud account. No cluster
-          agent.
+          all against your existing kubeconfig. If <code className="font-mono text-sm text-foreground">kubectl</code> works on your machine, Helmsman works.
         </p>
 
         <div className="motion-hero-item motion-hero-delay-3 mt-12 flex flex-wrap gap-4">
@@ -320,7 +319,7 @@ function DownloadSection() {
                 Download .dmg
               </a>
               <code className="bold-feature-code rounded-sm border border-transparent bg-muted/60 px-3 py-2 font-mono text-[10px] text-muted-foreground leading-5">
-                macOS 14+ Sonoma · Free · MIT
+                macOS 14+ Sonoma · Free · MIT · kubectl required for shell
               </code>
             </div>
           </RevealOnView>
@@ -349,7 +348,7 @@ function DownloadSection() {
                 ))}
               </div>
               <code className="bold-feature-code rounded-sm border border-transparent bg-muted/60 px-3 py-2 font-mono text-[10px] text-muted-foreground leading-5">
-                requires homebrew · brew.sh
+                requires homebrew · brew.sh · kubectl required for shell
               </code>
             </div>
           </RevealOnView>
