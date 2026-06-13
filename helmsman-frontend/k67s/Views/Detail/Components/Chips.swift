@@ -45,7 +45,7 @@ struct FlowLayout: Layout {
             x += size.width + spacing
             rowHeight = max(rowHeight, size.height)
         }
-        let width = maxWidth == .infinity ? x : maxWidth
+        let width = maxWidth == .infinity ? x : min(maxWidth, x)
         return CGSize(width: width, height: y + rowHeight)
     }
 

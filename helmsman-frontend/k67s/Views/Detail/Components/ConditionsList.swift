@@ -7,7 +7,7 @@ struct ConditionsList: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
-            ForEach(Array(conditions.enumerated()), id: \.offset) { _, condition in
+            ForEach(conditions, id: \.self) { condition in
                 let type = condition["type"]?.stringValue ?? "—"
                 let status = condition["status"]?.stringValue ?? "Unknown"
                 HStack(spacing: 6) {

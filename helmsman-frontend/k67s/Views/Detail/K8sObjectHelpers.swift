@@ -3,11 +3,12 @@ import Foundation
 /// Pure derivations from an unstructured Kubernetes object (`JSONValue`).
 /// Kept free of SwiftUI so it stays unit-testable if a test target is added.
 enum K8s {
+    private static let iso8601 = ISO8601DateFormatter()
+
     /// Compact age like "17h", "2d", "5m" from an RFC3339 timestamp.
     static func age(from timestamp: String?) -> String? {
         guard let timestamp else { return nil }
-        let formatter = ISO8601DateFormatter()
-        guard let date = formatter.date(from: timestamp) else { return nil }
+        guard let date = iso8601.date(from: timestamp) else { return nil }
         let secs = Int(Date().timeIntervalSince(date))
         if secs <= 0 { return "0s" }
         let d = secs / 86400, h = (secs % 86400) / 3600
