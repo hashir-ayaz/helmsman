@@ -9,6 +9,7 @@ import {
 
 const BACKEND_CMD = "cd helmsman-api && make run";
 const CLONE_CMD = "git clone https://github.com/hashir-ayaz/helmsman";
+const DMG_URL = "https://qkupugaejupbhwpobbdr.supabase.co/storage/v1/object/public/helmsman-dmg/Helmsman.dmg";
 
 export default function Home() {
   return (
@@ -21,6 +22,7 @@ export default function Home() {
         <StatsBand />
         <WhySection />
         <FeaturesSection />
+        <DownloadSection />
         <CtaBanner />
       </main>
       <Footer />
@@ -44,6 +46,7 @@ function Nav() {
         <nav className="hidden md:flex items-center gap-8 text-xs font-medium tracking-wider uppercase text-muted-foreground">
           <a href="#why" className="motion-link hover:text-foreground">Why</a>
           <a href="#features" className="motion-link hover:text-foreground">Features</a>
+          <a href="#download" className="motion-link hover:text-foreground">Download</a>
           <a href="https://github.com/hashir-ayaz/helmsman" className="motion-link hover:text-foreground">GitHub</a>
         </nav>
 
@@ -93,17 +96,18 @@ function Hero() {
 
         <div className="motion-hero-item motion-hero-delay-3 mt-12 flex flex-wrap gap-4">
           <a
-            href="https://github.com/hashir-ayaz/helmsman"
+            href={DMG_URL}
             className="motion-btn bold-btn-primary inline-flex items-center gap-2 rounded-sm bg-primary px-7 py-3.5 text-sm font-bold tracking-wider uppercase text-primary-foreground hover:opacity-95"
+          >
+            <DownloadIcon />
+            Download
+          </a>
+          <a
+            href="https://github.com/hashir-ayaz/helmsman"
+            className="motion-btn inline-flex items-center gap-2 rounded-sm border border-border px-7 py-3.5 text-sm font-bold tracking-wider uppercase text-foreground hover:border-primary/40 hover:bg-muted"
           >
             <GitHubIcon />
             View on GitHub
-          </a>
-          <a
-            href="#features"
-            className="motion-btn inline-flex items-center rounded-sm border border-border px-7 py-3.5 text-sm font-bold tracking-wider uppercase text-foreground hover:border-primary/40 hover:bg-muted"
-          >
-            See Features
           </a>
         </div>
 
@@ -292,6 +296,63 @@ function FeaturesSection() {
   );
 }
 
+/* ─── Download ────────────────────────────────────────────────────────── */
+
+function DownloadSection() {
+  return (
+    <section id="download" className="py-28 md:py-32">
+      <div className="mx-auto max-w-6xl px-6">
+        <RevealOnView>
+          <div className="bold-cta-panel relative overflow-hidden rounded-lg border border-primary/40 bg-card p-12 text-center md:p-16">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-0 flex items-center justify-center"
+            >
+              <div className="motion-glow h-[360px] w-[720px] rounded-full bg-primary/15 blur-[90px]" />
+            </div>
+            <div className="relative">
+              <p className="mb-6 font-mono text-xs font-medium tracking-[0.3em] uppercase text-primary">
+                // macOS 14+
+              </p>
+              <h2 className="text-[clamp(2.25rem,5vw,3.25rem)] font-bold tracking-tight text-foreground text-balance">
+                Download Helmsman.
+              </h2>
+              <p className="mx-auto mt-5 max-w-md text-base text-muted-foreground md:text-lg text-pretty">
+                Native macOS app. Requires macOS 14 Sonoma or later. Free and open source — no sign-up, no account.
+              </p>
+
+              <div className="mt-12 flex flex-wrap justify-center gap-4">
+                <a
+                  href={DMG_URL}
+                  className="motion-btn bold-btn-primary inline-flex items-center gap-2.5 rounded-sm bg-primary px-8 py-4 text-sm font-bold tracking-wider uppercase text-primary-foreground hover:opacity-95"
+                >
+                  <DownloadIcon />
+                  Download .dmg
+                </a>
+                <a
+                  href="https://github.com/hashir-ayaz/helmsman"
+                  className="motion-btn inline-flex items-center gap-2 rounded-sm border border-border px-8 py-4 text-sm font-bold tracking-wider uppercase text-foreground hover:border-primary/40 hover:bg-muted"
+                >
+                  <GitHubIcon />
+                  Build from Source
+                </a>
+              </div>
+
+              <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
+                <span>macOS 14+ Sonoma</span>
+                <span aria-hidden>·</span>
+                <span>Go + Swift · No Electron</span>
+                <span aria-hidden>·</span>
+                <span>MIT License · Free</span>
+              </div>
+            </div>
+          </div>
+        </RevealOnView>
+      </div>
+    </section>
+  );
+}
+
 /* ─── CTA banner ──────────────────────────────────────────────────────── */
 
 function CtaBanner() {
@@ -369,6 +430,16 @@ function Footer() {
 }
 
 /* ─── Icons ───────────────────────────────────────────────────────────── */
+
+function DownloadIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <polyline points="7 10 12 15 17 10" />
+      <line x1="12" y1="15" x2="12" y2="3" />
+    </svg>
+  );
+}
 
 function HelmIcon() {
   return (
