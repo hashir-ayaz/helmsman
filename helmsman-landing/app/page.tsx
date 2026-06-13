@@ -10,6 +10,9 @@ import {
 const BACKEND_CMD = "cd helmsman-api && make run";
 const CLONE_CMD = "git clone https://github.com/hashir-ayaz/helmsman";
 const DMG_URL = "https://qkupugaejupbhwpobbdr.supabase.co/storage/v1/object/public/helmsman-dmg/Helmsman.dmg";
+const BREW_TAP = "brew tap hashir-ayaz/helmsman";
+const BREW_TRUST = "brew trust hashir-ayaz/helmsman";
+const BREW_INSTALL = "brew install --cask helmsman";
 
 export default function Home() {
   return (
@@ -96,7 +99,7 @@ function Hero() {
 
         <div className="motion-hero-item motion-hero-delay-3 mt-12 flex flex-wrap gap-4">
           <a
-            href={DMG_URL}
+            href="#download"
             className="motion-btn bold-btn-primary inline-flex items-center gap-2 rounded-sm bg-primary px-7 py-3.5 text-sm font-bold tracking-wider uppercase text-primary-foreground hover:opacity-95"
           >
             <DownloadIcon />
@@ -300,54 +303,67 @@ function FeaturesSection() {
 
 function DownloadSection() {
   return (
-    <section id="download" className="py-28 md:py-32">
+    <section id="download" className="py-28 md:py-32 bg-muted/10">
       <div className="mx-auto max-w-6xl px-6">
-        <RevealOnView>
-          <div className="bold-cta-panel relative overflow-hidden rounded-lg border border-primary/40 bg-card p-12 text-center md:p-16">
-            <div
-              aria-hidden
-              className="pointer-events-none absolute inset-0 flex items-center justify-center"
-            >
-              <div className="motion-glow h-[360px] w-[720px] rounded-full bg-primary/15 blur-[90px]" />
-            </div>
-            <div className="relative">
-              <p className="mb-6 font-mono text-xs font-medium tracking-[0.3em] uppercase text-primary">
-                // macOS 14+
-              </p>
-              <h2 className="text-[clamp(2.25rem,5vw,3.25rem)] font-bold tracking-tight text-foreground text-balance">
-                Download Helmsman.
-              </h2>
-              <p className="mx-auto mt-5 max-w-md text-base text-muted-foreground md:text-lg text-pretty">
-                Native macOS app. Requires macOS 14 Sonoma or later. Free and open source — no sign-up, no account.
-              </p>
+        <div className="mb-16">
+          <div className="bold-section-rule mb-8" aria-hidden />
+          <h2 className="text-[clamp(2.25rem,5vw,3.25rem)] font-bold leading-[1.05] tracking-tight text-foreground text-balance">
+            Get Helmsman.
+          </h2>
+        </div>
 
-              <div className="mt-12 flex flex-wrap justify-center gap-4">
-                <a
-                  href={DMG_URL}
-                  className="motion-btn bold-btn-primary inline-flex items-center gap-2.5 rounded-sm bg-primary px-8 py-4 text-sm font-bold tracking-wider uppercase text-primary-foreground hover:opacity-95"
-                >
-                  <DownloadIcon />
-                  Download .dmg
-                </a>
-                <a
-                  href="https://github.com/hashir-ayaz/helmsman"
-                  className="motion-btn inline-flex items-center gap-2 rounded-sm border border-border px-8 py-4 text-sm font-bold tracking-wider uppercase text-foreground hover:border-primary/40 hover:bg-muted"
-                >
-                  <GitHubIcon />
-                  Build from Source
-                </a>
+        <div className="grid gap-6 md:grid-cols-2">
+          <RevealOnView delay={0}>
+            <div className="motion-card flex h-full flex-col gap-6 rounded-lg border border-border bg-card p-8 hover:border-primary/50 hover:bg-card/90">
+              <div>
+                <p className="font-mono text-[10px] tracking-widest uppercase text-primary mb-3">01 / Direct</p>
+                <h3 className="text-xl font-bold text-foreground">Download the .dmg</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Download the disk image, open it, and drag Helmsman to Applications.
+                </p>
               </div>
-
-              <div className="mt-8 flex flex-wrap items-center justify-center gap-x-6 gap-y-1 font-mono text-[10px] tracking-widest uppercase text-muted-foreground">
-                <span>macOS 14+ Sonoma</span>
-                <span aria-hidden>·</span>
-                <span>Go + Swift · No Electron</span>
-                <span aria-hidden>·</span>
-                <span>MIT License · Free</span>
-              </div>
+              <a
+                href={DMG_URL}
+                className="motion-btn bold-btn-primary inline-flex items-center gap-2.5 self-start rounded-sm bg-primary px-6 py-3.5 text-sm font-bold tracking-wider uppercase text-primary-foreground hover:opacity-95"
+              >
+                <DownloadIcon />
+                Download .dmg
+              </a>
+              <code className="bold-feature-code rounded-sm border border-transparent bg-muted/60 px-3 py-2 font-mono text-[10px] text-muted-foreground leading-5">
+                macOS 14+ Sonoma · Free · MIT
+              </code>
             </div>
-          </div>
-        </RevealOnView>
+          </RevealOnView>
+
+          <RevealOnView delay={80}>
+            <div className="motion-card flex h-full flex-col gap-6 rounded-lg border border-border bg-card p-8 hover:border-primary/50 hover:bg-card/90">
+              <div>
+                <p className="font-mono text-[10px] tracking-widest uppercase text-primary mb-3">02 / Homebrew</p>
+                <h3 className="text-xl font-bold text-foreground">Install with Homebrew</h3>
+                <p className="mt-2 text-sm leading-6 text-muted-foreground">
+                  Tap the cask, then install. Updates with <code className="font-mono text-xs text-foreground">brew upgrade</code>.
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                {[BREW_TAP, BREW_TRUST, BREW_INSTALL].map((cmd) => (
+                  <CopyCommand
+                    key={cmd}
+                    value={cmd}
+                    label={`Copy: ${cmd}`}
+                    className="rounded-sm border border-border bg-muted/40 px-4 py-2.5 hover:border-primary/30 hover:bg-muted/60"
+                  >
+                    <code className="font-mono text-xs text-foreground">
+                      <span className="text-primary">$</span> {cmd}
+                    </code>
+                  </CopyCommand>
+                ))}
+              </div>
+              <code className="bold-feature-code rounded-sm border border-transparent bg-muted/60 px-3 py-2 font-mono text-[10px] text-muted-foreground leading-5">
+                requires homebrew · brew.sh
+              </code>
+            </div>
+          </RevealOnView>
+        </div>
       </div>
     </section>
   );
