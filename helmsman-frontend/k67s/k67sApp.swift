@@ -27,6 +27,13 @@ struct k67sApp: App {
             }
         }
         .defaultSize(width: 820, height: 680)
+
+        WindowGroup(id: "shell", for: ShellWindowTarget.self) { $target in
+            if let target {
+                ShellWindowView(target: target)
+            }
+        }
+        .defaultSize(width: 820, height: 520)
     }
 }
 

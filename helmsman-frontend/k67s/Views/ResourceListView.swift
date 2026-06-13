@@ -91,6 +91,7 @@ struct ResourceListView: View {
             if isPods {
                 Button("Logs") { openLogs(row: row, previous: false) }
                 Button("Previous Logs") { openLogs(row: row, previous: true) }
+                Button("Shell") { openShell(row: row) }
             }
 
             if canEditSingleObject {
@@ -180,6 +181,14 @@ struct ResourceListView: View {
             namespace: row.object.namespace ?? "",
             resource: resource.resource,
             name: row.object.name
+        ))
+    }
+
+    private func openShell(row: TablePayload.Row) {
+        openWindow(id: "shell", value: ShellWindowTarget(
+            ctx: app.selectedContext,
+            namespace: row.object.namespace ?? "",
+            pod: row.object.name
         ))
     }
 
