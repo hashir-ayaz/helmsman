@@ -93,6 +93,8 @@ struct ResourceDetailView: View {
                     Text(error.errorDescription ?? "Error")
                         .font(.callout)
                         .foregroundStyle(.secondary)
+                } else {
+                    ProgressView()
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
