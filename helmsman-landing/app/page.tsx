@@ -7,7 +7,6 @@ import {
   TerminalPanel,
 } from "@/components/site-delight";
 
-const BACKEND_CMD = "cd helmsman-api && make run";
 const CLONE_CMD = "git clone https://github.com/hashir-ayaz/helmsman";
 const DMG_URL = "https://qkupugaejupbhwpobbdr.supabase.co/storage/v1/object/public/helmsman-dmg/Helmsman.dmg";
 const BREW_TAP = "brew tap hashir-ayaz/helmsman";
@@ -241,21 +240,21 @@ function FeaturesSection() {
     },
     {
       tag: "04 / ACTIONS",
-      title: "Scale and restart workloads.",
-      body: "Scale deployments via the scale subresource. Trigger rolling restarts using the same pod-template annotation as kubectl rollout restart — no downtime, no guesswork.",
-      mono: 'PATCH spec.replicas • annotation restartedAt="<RFC3339>"',
+      title: "Full workload control.",
+      body: "Scale, restart, rollout history with one-click undo to any revision, pause/resume rollouts, suspend/resume CronJobs and Jobs, cancel running jobs, and drain nodes — all from the context menu.",
+      mono: "scale • restart • rollout undo • suspend • cancel • drain",
     },
     {
       tag: "05 / INSPECT",
-      title: "JSON tree + overview.",
-      body: "Every resource opens a detail panel with a structured overview, a collapsible JSON tree for the full object, and a raw YAML tab. Labels, owner refs, status conditions — all readable at a glance.",
+      title: "Kind-aware overviews.",
+      body: "Every resource gets a rich overview panel tailored to its kind — pods show containers, restarts, and node placement; services show ports and selectors; deployments show replica health. Plus a full JSON tree and raw YAML tab.",
       mono: "Overview → Object → YAML",
     },
     {
-      tag: "06 / CONTEXTS",
-      title: "Multi-context switching.",
-      body: "Switch between any kubeconfig context from the sidebar picker. Client bundles are built lazily and cached — switching contexts is instant after the first load.",
-      mono: "GET /api/v1/contexts  →  _current sentinel",
+      tag: "06 / SHELL",
+      title: "Interactive pod terminal.",
+      body: "Right-click any running pod and open a full interactive shell — bash with sh fallback. Switch between containers without leaving the window. Powered by kubectl exec, no cluster agent required.",
+      mono: "kubectl exec -it → bash || sh",
     },
   ];
 
@@ -379,14 +378,20 @@ function CtaBanner() {
                 Start managing your cluster.
               </h2>
               <p className="mx-auto mt-5 max-w-md text-base text-muted-foreground md:text-lg text-pretty">
-                Clone the repo, run the Go backend, open the Xcode project. No
-                dependencies outside your kubeconfig.
+                Download the app or install via Homebrew. No sign-up, no cloud account, no cluster agent — just your kubeconfig.
               </p>
 
               <div className="mt-12 flex flex-wrap justify-center gap-4">
                 <a
-                  href="https://github.com/hashir-ayaz/helmsman"
+                  href="#download"
                   className="motion-btn bold-btn-primary inline-flex items-center gap-2 rounded-sm bg-primary px-8 py-4 text-sm font-bold tracking-wider uppercase text-primary-foreground hover:opacity-95"
+                >
+                  <DownloadIcon />
+                  Download
+                </a>
+                <a
+                  href="https://github.com/hashir-ayaz/helmsman"
+                  className="motion-btn inline-flex items-center gap-2 rounded-sm border border-border px-8 py-4 text-sm font-bold tracking-wider uppercase text-foreground hover:border-primary/40 hover:bg-muted"
                 >
                   <GitHubIcon />
                   GitHub Repository
@@ -400,13 +405,6 @@ function CtaBanner() {
                   className="rounded-sm border border-border bg-background/60 px-5 py-3 font-mono text-xs text-muted-foreground hover:border-primary/30"
                 >
                   <span><span className="text-primary">$</span> {CLONE_CMD}</span>
-                </CopyCommand>
-                <CopyCommand
-                  value={BACKEND_CMD}
-                  label="Copy backend start command"
-                  className="rounded-sm border border-border bg-background/60 px-5 py-3 font-mono text-xs text-muted-foreground hover:border-primary/30"
-                >
-                  <span><span className="text-primary">$</span> {BACKEND_CMD}</span>
                 </CopyCommand>
               </div>
             </div>
