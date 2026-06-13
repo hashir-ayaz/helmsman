@@ -35,13 +35,49 @@ BUILD_DIR="$REPO_ROOT/build"
 DERIVED="$BUILD_DIR/DerivedData"
 DIST="$BUILD_DIR/dist"
 
+apply_dmg_volume_icon() {
+  local dmg="$1"
+  local icns="$2"
+  local volname="${3:-$VOLNAME}"
+  [[ -f "$dmg" && -f "$icns" ]] || return 0
+  if ! command -v SetFile >/dev/null 2>&1; then
+    echo "    WARNING: SetFile not found — DMG volume will keep the default icon."
+    return 0
+  fi
+
+  local rw_dmg="${dmg%.dmg}-rw.dmg"
+  local mount_dir=""
+  rm -f "$rw_dmg"
+  # Detach stale mounts (e.g. user opened an older DMG) so we can write .VolumeIcon.icns.
+  while IFS= read -r vol; do
+    hdiutil detach "$vol" -quiet 2>/dev/null || true
+  done < <(mount | awk -v name="$volname" '$3 ~ "/Volumes/" name {print $3}')
+
+  hdiutil convert "$dmg" -format UDRW -o "$rw_dmg" -quiet
+  mount_dir="$(hdiutil attach -readwrite -noverify -noautoopen "$rw_dmg" | awk '/\/Volumes\// {print $3; exit}')"
+  cp "$icns" "$mount_dir/.VolumeIcon.icns"
+  SetFile -a C "$mount_dir"
+  sync
+  hdiutil detach "$mount_dir" -quiet
+  rm -f "$dmg"
+  hdiutil convert "$rw_dmg" -format UDZO -o "$dmg" -quiet
+  rm -f "$rw_dmg"
+}
+
 rm -rf "$DERIVED" "$DIST"
 mkdir -p "$DIST"
 
-echo "==> [1/6] Building universal Go backend"
+echo "==> [1/7] Syncing app icon from build/assets"
+MASTER_ICON="$REPO_ROOT/build/assets/helmsman-app-icon-1024.png"
+if [[ -f "$MASTER_ICON" ]]; then
+  bash "$REPO_ROOT/scripts/build-icns.sh" "$MASTER_ICON" "$DMG_ICON"
+fi
+bash "$REPO_ROOT/scripts/sync-app-icon.sh" "$DMG_ICON"
+
+echo "==> [2/7] Building universal Go backend"
 make -C "$API_DIR" build-universal
 
-echo "==> [2/6] Building app ($CONFIGURATION, unsigned)"
+echo "==> [3/7] Building app ($CONFIGURATION, unsigned)"
 xcodebuild \
   -project "$XCODEPROJ" \
   -scheme "$SCHEME" \
@@ -54,11 +90,11 @@ SRC_APP="$DERIVED/Build/Products/$CONFIGURATION/$SCHEME.app"
 APP="$DIST/$SCHEME.app"
 cp -R "$SRC_APP" "$APP"
 
-echo "==> [3/6] Embedding backend into $APP/Contents/Resources"
+echo "==> [4/7] Embedding backend into $APP/Contents/Resources"
 cp "$API_DIR/bin/helmsman-api" "$APP/Contents/Resources/helmsman-api"
 chmod +x "$APP/Contents/Resources/helmsman-api"
 
-echo "==> [4/6] Signing (inside-out)"
+echo "==> [5/7] Signing (inside-out)"
 if [[ -n "$DEVELOPER_ID_APP" ]]; then
   SIGN=(--sign "$DEVELOPER_ID_APP" --options runtime --timestamp)
 else
@@ -71,7 +107,7 @@ codesign --force "${SIGN[@]}" "$APP/Contents/Resources/helmsman-api"
 codesign --force "${SIGN[@]}" --entitlements "$ENTITLEMENTS" "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
 
-echo "==> [5/6] Building DMG"
+echo "==> [6/7] Building DMG"
 DMG="$DIST/$VOLNAME.dmg"
 if command -v create-dmg >/dev/null 2>&1; then
   CREATE_DMG_ARGS=(--volname "$VOLNAME" --app-drop-link 450 180)
@@ -80,7 +116,11 @@ if command -v create-dmg >/dev/null 2>&1; then
   else
     echo "    WARNING: $DMG_ICON not found — DMG will use the default volume icon."
   fi
-  create-dmg "${CREATE_DMG_ARGS[@]}" "$DMG" "$APP" || true
+  rm -f "$DMG"
+  if ! create-dmg "${CREATE_DMG_ARGS[@]}" "$DMG" "$APP"; then
+    echo "    create-dmg failed — falling back to hdiutil."
+    rm -f "$DMG"
+  fi
 fi
 if [[ ! -f "$DMG" ]]; then
   # Fallback: hdiutil with an /Applications drop target.
@@ -90,15 +130,16 @@ if [[ ! -f "$DMG" ]]; then
   ln -s /Applications "$STAGING/Applications"
   hdiutil create -volname "$VOLNAME" -srcfolder "$STAGING" -ov -format UDZO "$DMG"
   rm -rf "$STAGING"
+  apply_dmg_volume_icon "$DMG" "$DMG_ICON"
 fi
 
 if [[ -n "$DEVELOPER_ID_APP" && -n "$NOTARY_PROFILE" ]]; then
-  echo "==> [6/6] Notarizing + stapling"
+  echo "==> [7/7] Notarizing + stapling"
   xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
   xcrun stapler staple "$DMG"
   xcrun stapler validate "$DMG"
 else
-  echo "==> [6/6] Skipping notarization (set DEVELOPER_ID_APP and NOTARY_PROFILE to enable)."
+  echo "==> [7/7] Skipping notarization (set DEVELOPER_ID_APP and NOTARY_PROFILE to enable)."
 fi
 
 echo ""

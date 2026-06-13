@@ -1,3 +1,32 @@
+#!/usr/bin/env bash
+#
+# sync-app-icon.sh — populate AppIcon.appiconset from build/assets/Helmsman.icns
+#
+# The Xcode asset catalog defines macOS icon slots but ships no PNGs, so Release
+# builds produce a generic app icon. This script extracts the standard iconset
+# from the canonical .icns and copies it into the catalog before packaging.
+#
+set -euo pipefail
+
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+ICNS="${1:-$REPO_ROOT/build/assets/Helmsman.icns}"
+DEST="$REPO_ROOT/helmsman-frontend/k67s/Assets.xcassets/AppIcon.appiconset"
+TMP="$(mktemp -d)"
+
+cleanup() { rm -rf "$TMP"; }
+trap cleanup EXIT
+
+if [[ ! -f "$ICNS" ]]; then
+  echo "error: icon not found: $ICNS" >&2
+  exit 1
+fi
+
+iconutil --convert iconset -o "$TMP/AppIcon.iconset" "$ICNS"
+
+rm -f "$DEST"/icon_*.png
+cp "$TMP/AppIcon.iconset"/icon_*.png "$DEST"/
+
+cat > "$DEST/Contents.json" <<'EOF'
 {
   "images" : [
     {
@@ -66,3 +95,6 @@
     "version" : 1
   }
 }
+EOF
+
+echo "Synced app icon -> $DEST ($(ls "$DEST"/icon_*.png | wc -l | tr -d ' ') PNGs)"
