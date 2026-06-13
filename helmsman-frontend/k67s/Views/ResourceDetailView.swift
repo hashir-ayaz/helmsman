@@ -84,27 +84,11 @@ struct ResourceDetailView: View {
 
     private var overviewTab: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 10) {
+            Group {
                 if model.isLoadingObject {
                     ProgressView()
                 } else if let object = model.object {
-                    let meta = object["metadata"]
-                    detailRow("Name", meta?["name"]?.stringValue ?? row.object.name)
-                    if let ns = meta?["namespace"]?.stringValue {
-                        detailRow("Namespace", ns)
-                    }
-                    if let created = meta?["creationTimestamp"]?.stringValue {
-                        detailRow("Created", created)
-                    }
-                    if let phase = object["status"]?["phase"]?.stringValue {
-                        detailRow("Status", phase)
-                    }
-                    if let uid = meta?["uid"]?.stringValue {
-                        detailRow("UID", uid)
-                    }
-                    if let labels = meta?["labels"]?.objectValue, !labels.isEmpty {
-                        labelsSection(labels)
-                    }
+                    ResourceOverview(object: object)
                 } else if let error = model.error {
                     Text(error.errorDescription ?? "Error")
                         .font(.callout)
@@ -146,31 +130,4 @@ struct ResourceDetailView: View {
         }
     }
 
-    private func detailRow(_ label: String, _ value: String) -> some View {
-        HStack(alignment: .top) {
-            Text(label)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .frame(width: 90, alignment: .leading)
-            Text(value)
-                .font(.callout)
-                .textSelection(.enabled)
-            Spacer(minLength: 0)
-        }
-    }
-
-    private func labelsSection(_ labels: [String: JSONValue]) -> some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("Labels")
-                .font(.caption)
-                .fontWeight(.semibold)
-                .foregroundStyle(.secondary)
-            ForEach(labels.keys.sorted(), id: \.self) { key in
-                Text("\(key)=\(labels[key]?.displayString ?? "")")
-                    .font(.system(.caption, design: .monospaced))
-                    .textSelection(.enabled)
-            }
-        }
-        .padding(.top, 4)
-    }
 }
