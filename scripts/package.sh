@@ -8,6 +8,8 @@
 #
 # Configuration (all overridable via environment):
 #   SCHEME              Xcode scheme            (default: k67s)
+#   APP_NAME            built .app product name (default: Helmsman)
+#                       Must match PRODUCT_NAME in the Xcode project.
 #   CONFIGURATION       build configuration     (default: Release)
 #   VOLNAME             DMG/volume name         (default: Helmsman)
 #   DMG_ICON            .icns for DMG volume    (default: build/assets/Helmsman.icns)
@@ -21,6 +23,7 @@
 set -euo pipefail
 
 SCHEME="${SCHEME:-k67s}"
+APP_NAME="${APP_NAME:-Helmsman}"
 CONFIGURATION="${CONFIGURATION:-Release}"
 VOLNAME="${VOLNAME:-Helmsman}"
 DEVELOPER_ID_APP="${DEVELOPER_ID_APP:-}"
@@ -86,8 +89,8 @@ xcodebuild \
   CODE_SIGNING_ALLOWED=NO \
   build
 
-SRC_APP="$DERIVED/Build/Products/$CONFIGURATION/$SCHEME.app"
-APP="$DIST/$SCHEME.app"
+SRC_APP="$DERIVED/Build/Products/$CONFIGURATION/$APP_NAME.app"
+APP="$DIST/$APP_NAME.app"
 cp -R "$SRC_APP" "$APP"
 
 echo "==> [4/7] Embedding backend into $APP/Contents/Resources"
