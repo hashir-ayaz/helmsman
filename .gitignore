@@ -2,6 +2,17 @@
 *.swp
 *.swo
 
+# Local docs (not for the repo)
+docs/BACKEND-IMPLEMENTATION-GUIDE.md
+
+# Agent IDE tooling (inflates GitHub language stats)
+.agents/
+.claire/
+.claude/
+.cursor/
+.gemini/
+.impeccable/
+
 # Go API
 helmsman-api/bin/
 
@@ -20,3 +31,4 @@ helmsman-frontend/**/build/
 build/DerivedData/
 build/dist/
 build/.DS_Store
+.vercel
