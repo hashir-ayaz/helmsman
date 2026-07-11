@@ -25,6 +25,8 @@ struct ResourceOverview: View {
         case "CronJob": CronJobOverview(object: object)
         case "ConfigMap", "Secret": ConfigOverview(object: object)
         case "ResourceQuota": ResourceQuotaOverview(object: object)
+        case "Role": RoleOverview(object: object)
+        case "RoleBinding": RoleBindingOverview(object: object)
         case "Node": NodeOverview(object: object)
         case "Event": EventOverview(object: object)
         default: GenericOverview(object: object)

@@ -19,6 +19,8 @@ struct LogWindowView: View {
         .navigationTitle(target.windowTitle)
         .toolbar { toolbarContent }
         .task {
+            await model.resolveJobPodsIfNeeded()
+            guard model.canStream else { return }
             await model.loadContainers()
             model.start()
         }
@@ -27,7 +29,16 @@ struct LogWindowView: View {
 
     @ViewBuilder
     private var logBody: some View {
-        if let error = model.error, model.lines.isEmpty {
+        if let error = model.error, model.lines.isEmpty, !model.canStream {
+            ErrorStateView(error: error) {
+                Task {
+                    await model.resolveJobPodsIfNeeded()
+                    guard model.canStream else { return }
+                    await model.loadContainers()
+                    model.start()
+                }
+            }
+        } else if let error = model.error, model.lines.isEmpty {
             ErrorStateView(error: error) { model.start() }
         } else {
             ScrollViewReader { proxy in
@@ -85,6 +96,16 @@ struct LogWindowView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup {
+            if !model.jobPods.isEmpty {
+                Picker("Pod", selection: $model.selectedPod) {
+                    ForEach(model.jobPods, id: \.self) { name in
+                        Text(name).tag(name as String?)
+                    }
+                }
+                .pickerStyle(.menu)
+                .frame(maxWidth: 200)
+            }
+
             if model.containers.count > 1 {
                 Picker("Container", selection: $model.selectedContainer) {
                     ForEach(model.containers, id: \.self) { name in

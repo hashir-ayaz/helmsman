@@ -19,8 +19,11 @@ struct ResourceType: Identifiable, Hashable, Sendable {
 
     // MARK: - Mutation capabilities
 
-    /// Only pods expose the log endpoint.
+    /// Only pods expose the log endpoint directly.
     var isPods: Bool { resource == "pods" }
+
+    /// Pods and Jobs can open the log window (Jobs resolve owned pods).
+    var supportsLogs: Bool { resource == "pods" || resource == "jobs.batch" }
 
     /// The `{workload}` path segment for the scale endpoint, or `nil` if not scalable.
     /// StatefulSets and ReplicaSets now support scale in addition to Deployments.
@@ -76,6 +79,7 @@ enum ResourceSection: String, CaseIterable, Hashable, Sendable {
     case networking = "Networking"
     case config = "Config"
     case storage = "Storage"
+    case accessControl = "Access Control"
     case cluster = "Cluster"
 }
 
@@ -106,6 +110,10 @@ extension ResourceType {
         .init(title: "PersistentVolumes", resource: "persistentvolumes", symbol: "externaldrive", scope: .cluster, section: .storage),
         .init(title: "PVCs", resource: "persistentvolumeclaims", symbol: "externaldrive.badge.plus", scope: .namespaced, section: .storage),
         .init(title: "StorageClasses", resource: "storageclasses.storage.k8s.io", symbol: "square.stack", scope: .cluster, section: .storage),
+
+        // Access Control
+        .init(title: "Roles", resource: "roles.rbac.authorization.k8s.io", symbol: "person.badge.key", scope: .namespaced, section: .accessControl),
+        .init(title: "RoleBindings", resource: "rolebindings.rbac.authorization.k8s.io", symbol: "link", scope: .namespaced, section: .accessControl),
 
         // Cluster
         .init(title: "Namespaces", resource: "namespaces", symbol: "folder", scope: .cluster, section: .cluster),

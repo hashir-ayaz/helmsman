@@ -32,3 +32,6 @@ build/DerivedData/
 build/dist/
 build/.DS_Store
 .vercel
+
+# Git worktrees
+.worktrees/

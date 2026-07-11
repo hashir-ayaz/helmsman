@@ -133,9 +133,12 @@ struct ResourceListView: View {
             // ── Inspect / Logs ──────────────────────────────────────────────
             Button("Inspect") { inspect(id) }
 
-            if isPods {
+            if resource.supportsLogs {
                 Button("Logs") { openLogs(row: row, previous: false) }
                 Button("Previous Logs") { openLogs(row: row, previous: true) }
+            }
+
+            if isPods {
                 Button("Shell") { openShell(row: row) }
             }
 
@@ -224,12 +227,26 @@ struct ResourceListView: View {
     }
 
     private func openLogs(row: TablePayload.Row, previous: Bool) {
-        openWindow(id: "logs", value: LogWindowTarget(
-            ctx: app.selectedContext,
-            namespace: row.object.namespace ?? "",
-            pod: row.object.name,
-            previous: previous
-        ))
+        let namespace = row.object.namespace ?? ""
+        let target: LogWindowTarget
+        if resource.resource == "jobs.batch" {
+            target = LogWindowTarget(
+                ctx: app.selectedContext,
+                namespace: namespace,
+                pod: nil,
+                job: row.object.name,
+                previous: previous
+            )
+        } else {
+            target = LogWindowTarget(
+                ctx: app.selectedContext,
+                namespace: namespace,
+                pod: row.object.name,
+                job: nil,
+                previous: previous
+            )
+        }
+        openWindow(id: "logs", value: target)
     }
 
     private func openYAML(row: TablePayload.Row) {
