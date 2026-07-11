@@ -20,6 +20,7 @@ struct ClusterOverviewView: View {
         .contentAppear()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .navigationTitle("Cluster Overview")
+        .scopePickerToolbar(app: app)
         .toolbar { toolbarContent }
         .overlay {
             if model.isLoading && model.summaryCards.isEmpty {

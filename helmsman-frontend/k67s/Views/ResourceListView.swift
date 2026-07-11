@@ -39,6 +39,7 @@ struct ResourceListView: View {
         }
         .navigationTitle(resource.title)
         .searchable(text: $model.searchText, prompt: "Search \(resource.title.lowercased())…")
+        .scopePickerToolbar(app: app)
         .toolbar { toolbarContent }
         .rowActionAlerts(actions)
         .task(id: taskKey) {
@@ -377,6 +378,9 @@ struct ResourceListView: View {
 
     private func reloadAndSyncSelection() async {
         await model.load(ctx: app.selectedContext, ns: app.namespaceParam, resource: resource)
+        if let count = model.payload?.rows.count {
+            app.sidebarCounts.set(resource: resource.resource, count: count)
+        }
         syncSelectionAfterReload()
     }
 

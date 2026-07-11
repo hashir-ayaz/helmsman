@@ -51,6 +51,16 @@ final class AppModel {
         [Self.allNamespaces] + namespaces
     }
 
+    /// Human-readable context label for the scope pill.
+    var contextDisplayName: String {
+        if selectedContext == "_current" {
+            return contexts.first(where: \.isCurrent)?.name ?? "Current Context"
+        }
+        return selectedContext
+    }
+
+    let sidebarCounts = SidebarCountsModel()
+
     var isReady: Bool {
         if case .ready = connectionPhase { return true }
         return false
@@ -102,6 +112,7 @@ final class AppModel {
         guard await loadContexts() else { return }
         await loadNamespaces()
         connectionPhase = .ready
+        await reloadSidebarCounts()
     }
 
     func retryConnection() async {
@@ -160,6 +171,10 @@ final class AppModel {
     func contextDidChange() async {
         selectedNamespace = Self.allNamespaces
         await loadNamespaces()
+    }
+
+    func reloadSidebarCounts() async {
+        await sidebarCounts.load(ctx: selectedContext, namespaceParam: namespaceParam)
     }
 
     @discardableResult
