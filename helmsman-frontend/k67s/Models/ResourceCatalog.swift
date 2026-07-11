@@ -100,6 +100,7 @@ extension ResourceType {
         // Config
         .init(title: "ConfigMaps", resource: "configmaps", symbol: "doc.text", scope: .namespaced, section: .config),
         .init(title: "Secrets", resource: "secrets", symbol: "lock.doc", scope: .namespaced, section: .config),
+        .init(title: "ResourceQuotas", resource: "resourcequotas", symbol: "gauge.with.dots.needle.33percent", scope: .namespaced, section: .config),
 
         // Storage
         .init(title: "PersistentVolumes", resource: "persistentvolumes", symbol: "externaldrive", scope: .cluster, section: .storage),
