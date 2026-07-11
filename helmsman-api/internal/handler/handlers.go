@@ -20,6 +20,7 @@ type Handlers struct {
 	Actions   *ActionHandler
 	Logs      *LogHandler
 	Contexts  *ContextHandler
+	Status    *StatusHandler
 	Watch     *WatchHandler
 	Rollout   *RolloutHandler
 }
@@ -31,6 +32,7 @@ func New(p cluster.Provider) Handlers {
 		Actions:   &ActionHandler{provider: p},
 		Logs:      &LogHandler{provider: p},
 		Contexts:  &ContextHandler{provider: p},
+		Status:    &StatusHandler{provider: p},
 		Watch:     &WatchHandler{provider: p},
 		Rollout:   &RolloutHandler{provider: p},
 	}
@@ -81,6 +83,9 @@ func scopeMismatch(ref k8s.ResourceRef, ns string) (string, bool) {
 }
 
 func bundleFor(p cluster.Provider, r *http.Request) (*cluster.ClientBundle, error) {
+	if st := p.Status(); !st.Ready {
+		return nil, &cluster.NotReadyError{Status: st}
+	}
 	ctxName := r.PathValue("ctx")
 	if ctxName == currentSentinel {
 		ctxName = ""

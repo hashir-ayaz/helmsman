@@ -12,6 +12,8 @@ final class ResourceListModel {
     var showWide = false
     private(set) var isWatching = false
     private var reloadWork: Task<Void, Never>?
+    /// Called on the main actor before a watch-debounced reload mutates `payload`.
+    var willReload: (@MainActor () -> Void)?
 
     /// Cancels any debounced watch-triggered reload. Call before an
     /// immediate mutation-triggered reload to prevent a stale second load.
@@ -142,6 +144,7 @@ final class ResourceListModel {
                 return
             }
             guard let self else { return }
+            self.willReload?()
             await self.load(ctx: ctx, ns: ns, resource: resource)
         }
     }

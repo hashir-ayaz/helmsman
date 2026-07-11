@@ -3,7 +3,10 @@
 package cluster
 
 import (
+	"errors"
 	"fmt"
+	"os"
+	"strings"
 	"sync"
 
 	"k8s.io/apimachinery/pkg/api/meta"
@@ -15,6 +18,26 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 )
+
+// Status describes whether the cluster provider is ready to serve requests.
+type Status struct {
+	Ready   bool   `json:"ready"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// NotReadyError is returned when handlers need a client bundle but kubeconfig
+// is not usable. Maps to HTTP 503 in the handler layer.
+type NotReadyError struct {
+	Status Status
+}
+
+func (e *NotReadyError) Error() string {
+	if e.Status.Message != "" {
+		return e.Status.Message
+	}
+	return "cluster not ready"
+}
 
 // ClientBundle holds every client a handler needs for one cluster context.
 type ClientBundle struct {
@@ -44,6 +67,7 @@ type Provider interface {
 	Contexts() []ContextInfo
 	Current() string
 	Bundle(contextName string) (*ClientBundle, error)
+	Status() Status
 }
 
 type kubeProvider struct {
@@ -56,16 +80,39 @@ type kubeProvider struct {
 	cache map[string]*ClientBundle
 }
 
+type unavailableProvider struct {
+	status Status
+}
+
+func (p *unavailableProvider) Contexts() []ContextInfo { return nil }
+func (p *unavailableProvider) Current() string         { return "" }
+func (p *unavailableProvider) Bundle(string) (*ClientBundle, error) {
+	return nil, &NotReadyError{Status: p.status}
+}
+func (p *unavailableProvider) Status() Status { return p.status }
+
 // NewProvider loads the kubeconfig at path (honouring $KUBECONFIG merge rules
-// when path is empty) and prepares lazy per-context bundles.
-func NewProvider(kubeconfigPath string) (Provider, error) {
+// when path is empty) and prepares lazy per-context bundles. On load failure it
+// returns a degraded provider that reports not-ready status but still lets the
+// HTTP server start.
+func NewProvider(kubeconfigPath string) Provider {
 	rules := clientcmd.NewDefaultClientConfigLoadingRules()
 	if kubeconfigPath != "" {
 		rules.ExplicitPath = kubeconfigPath
 	}
 	cfg, err := rules.Load()
 	if err != nil {
-		return nil, fmt.Errorf("load kubeconfig: %w", err)
+		return newUnavailableProvider(classifyKubeconfigError(kubeconfigPath, err))
+	}
+
+	if len(cfg.Contexts) == 0 {
+		return &unavailableProvider{
+			status: Status{
+				Ready:   false,
+				Code:    "no_contexts",
+				Message: "Your kubeconfig has no contexts configured.",
+			},
+		}
 	}
 
 	infos := make([]ContextInfo, 0, len(cfg.Contexts))
@@ -84,11 +131,46 @@ func NewProvider(kubeconfigPath string) (Provider, error) {
 		infos:   infos,
 		loader:  *rules,
 		cache:   map[string]*ClientBundle{},
-	}, nil
+	}
+}
+
+func newUnavailableProvider(status Status) *unavailableProvider {
+	return &unavailableProvider{status: status}
+}
+
+func classifyKubeconfigError(path string, err error) Status {
+	if path != "" {
+		if _, statErr := os.Stat(path); statErr != nil && errors.Is(statErr, os.ErrNotExist) {
+			return Status{
+				Ready:   false,
+				Code:    "kubeconfig_not_found",
+				Message: fmt.Sprintf("No kubeconfig found at %s.", path),
+			}
+		}
+	}
+	if errors.Is(err, os.ErrNotExist) || strings.Contains(err.Error(), "no such file or directory") {
+		display := path
+		if display == "" {
+			display = "your kubeconfig"
+		}
+		return Status{
+			Ready:   false,
+			Code:    "kubeconfig_not_found",
+			Message: fmt.Sprintf("No kubeconfig found at %s.", display),
+		}
+	}
+	return Status{
+		Ready:   false,
+		Code:    "kubeconfig_invalid",
+		Message: fmt.Sprintf("Could not load kubeconfig: %v", err),
+	}
 }
 
 func (p *kubeProvider) Contexts() []ContextInfo { return p.infos }
 func (p *kubeProvider) Current() string         { return p.current }
+func (p *kubeProvider) Status() Status {
+	return Status{Ready: true, Code: "ready"}
+}
 
 func (p *kubeProvider) Bundle(contextName string) (*ClientBundle, error) {
 	if contextName == "" {

@@ -40,6 +40,7 @@ struct ResourceListView: View {
         .rowActionAlerts(actions)
         .task(id: taskKey) {
             actions.resource = resource
+            model.willReload = { selectedRowID = nil }
             actions.onMutated = {
                 // Clear stale selection and cancel any pending watch-triggered
                 // reload before issuing the authoritative post-mutation reload.
@@ -72,6 +73,15 @@ struct ResourceListView: View {
         // Stable identity per resource/namespace/context so SwiftUI rebuilds the
         // table when the column set changes rather than mutating it mid-layout.
         .id(taskKey)
+        .onChange(of: model.visibleColumns.map(\.id)) { _, _ in
+            // Column structure changed — NSTableView cannot keep a valid selection index.
+            selectedRowID = nil
+        }
+        .onChange(of: model.rows.map(\.id)) { _, ids in
+            if let selected = selectedRowID, !ids.contains(selected) {
+                selectedRowID = nil
+            }
+        }
         .contextMenu(forSelectionType: TablePayload.Row.ID.self) { ids in
             rowMenu(for: ids)
         } primaryAction: { ids in
@@ -227,7 +237,7 @@ struct ResourceListView: View {
             Text(text)
                 .foregroundStyle(.tint)
                 .fontWeight(.medium)
-        } else if columnName.hasPrefix("port") {
+        } else if columnName == "port(s)" || columnName == "ports" {
             PortChipsView(value: text)
         } else {
             Text(text).lineLimit(1)

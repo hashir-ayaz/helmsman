@@ -26,9 +26,9 @@ func main() {
 
 	watchParentDeath()
 
-	provider, err := cluster.NewProvider(cfg.KubeconfigPath)
-	if err != nil {
-		log.Fatalf("cluster provider: %v", err)
+	provider := cluster.NewProvider(cfg.KubeconfigPath)
+	if st := provider.Status(); !st.Ready {
+		log.Printf("cluster not ready (%s): %s", st.Code, st.Message)
 	}
 
 	srv := server.New(cfg.Port, handler.New(provider))

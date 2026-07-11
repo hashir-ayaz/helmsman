@@ -23,6 +23,9 @@ struct SidebarView: View {
             .listStyle(.sidebar)
         }
         .frame(minWidth: 215)
+        .onChange(of: app.selectedContext) { _, _ in
+            Task { await app.contextDidChange() }
+        }
     }
 
     private var pickers: some View {

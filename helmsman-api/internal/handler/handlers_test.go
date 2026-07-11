@@ -30,6 +30,9 @@ func (f *fakeProvider) Contexts() []cluster.ContextInfo {
 }
 func (f *fakeProvider) Current() string                              { return "dev" }
 func (f *fakeProvider) Bundle(string) (*cluster.ClientBundle, error) { return f.bundle, nil }
+func (f *fakeProvider) Status() cluster.Status {
+	return cluster.Status{Ready: true, Code: "ready"}
+}
 
 func newFakeProvider(objs ...runtime.Object) *fakeProvider {
 	dyn := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme(), objs...)

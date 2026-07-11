@@ -1,0 +1,39 @@
+Helmsman Codemap Scan Report
+Generated: 2026-07-10
+Files scanned: 97 (Go + Swift + TS/TSX, excluding node_modules and generated swagger)
+
+=== Scan Type ===
+INITIAL GENERATION — no prior codemaps found in docs/CODEMAPS/
+
+=== Files Created ===
++ docs/CODEMAPS/architecture.md
++ docs/CODEMAPS/backend.md
++ docs/CODEMAPS/frontend.md
++ docs/CODEMAPS/data.md
++ docs/CODEMAPS/dependencies.md
+
+=== Architecture Summary ===
+Monorepo: helmsman-api (Go K8s proxy) + helmsman-frontend (SwiftUI macOS) + helmsman-landing (Next.js marketing)
+
+Key routes: 25+ HTTP endpoints under /api/v1/contexts/{ctx}/...
+SSE streams: watch (resource lists), pod logs
+No application database — kubeconfig + K8s API only
+
+=== New Features Detected (vs CLAUDE.md baseline) ===
++ Shell window (kubectl exec locally — frontend only, no API route)
++ Embedded backend sidecar (BackendProcess + HELMSMAN_PARENT_WATCH)
++ Kind-specific detail overviews (Pod, Workload, Node, Service, Config, Batch, Generic)
++ StatefulSet/ReplicaSet scale support in ResourceCatalog
++ Dynamic baseURL port selection (not hardcoded :8080 in packaged builds)
+
+=== Dependencies Detected ===
+Go: k8s.io/client-go v0.32.3, swaggo
+Swift: Apple frameworks only (no SPM packages)
+Next: next 16.2.9, react 19.2.4, tailwindcss 4
+External: Supabase Storage (DMG), Homebrew tap, local kubectl
+
+=== Staleness Warnings ===
+None — all codemaps freshly generated.
+
+=== Diff vs Previous ===
+N/A (first run). Future scans will compute diff percentage before overwrite.

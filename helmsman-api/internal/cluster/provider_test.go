@@ -34,10 +34,7 @@ func writeKubeconfig(t *testing.T) string {
 }
 
 func TestProviderContexts(t *testing.T) {
-	p, err := NewProvider(writeKubeconfig(t))
-	if err != nil {
-		t.Fatalf("NewProvider: %v", err)
-	}
+	p := NewProvider(writeKubeconfig(t))
 	if got := p.Current(); got != "dev" {
 		t.Errorf("Current() = %q, want dev", got)
 	}
@@ -58,4 +55,66 @@ func TestProviderContexts(t *testing.T) {
 	if byName["dev"].Cluster != "dev-cluster" {
 		t.Errorf("dev cluster = %q, want dev-cluster", byName["dev"].Cluster)
 	}
+	st := p.Status()
+	if !st.Ready || st.Code != "ready" {
+		t.Errorf("Status() = %+v, want ready", st)
+	}
+}
+
+func TestProviderMissingKubeconfig(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "missing-config")
+	p := NewProvider(path)
+	st := p.Status()
+	if st.Ready {
+		t.Fatal("expected not ready")
+	}
+	if st.Code != "kubeconfig_not_found" {
+		t.Errorf("Code = %q, want kubeconfig_not_found", st.Code)
+	}
+	if st.Message == "" {
+		t.Error("expected user-facing message")
+	}
+	if len(p.Contexts()) != 0 {
+		t.Error("expected no contexts")
+	}
+	_, err := p.Bundle("")
+	if err == nil {
+		t.Fatal("expected Bundle error")
+	}
+	var nre *NotReadyError
+	if !errorsAsNotReady(err, &nre) {
+		t.Fatalf("Bundle error = %T %v, want *NotReadyError", err, err)
+	}
+}
+
+func TestProviderNoContexts(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config")
+	content := `
+apiVersion: v1
+kind: Config
+clusters: []
+contexts: []
+users: []
+`
+	if err := os.WriteFile(path, []byte(content), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	p := NewProvider(path)
+	st := p.Status()
+	if st.Ready {
+		t.Fatal("expected not ready")
+	}
+	if st.Code != "no_contexts" {
+		t.Errorf("Code = %q, want no_contexts", st.Code)
+	}
+}
+
+func errorsAsNotReady(err error, target **NotReadyError) bool {
+	nre, ok := err.(*NotReadyError)
+	if !ok {
+		return false
+	}
+	*target = nre
+	return true
 }

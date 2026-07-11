@@ -25,6 +25,7 @@ func New(port string, h handler.Handlers) *Server {
 	mux.HandleFunc("GET /health", health)
 	mux.HandleFunc("/swagger/", httpSwagger.WrapHandler)
 
+	mux.HandleFunc("GET /api/v1/status", h.Status.Get)
 	mux.HandleFunc("GET /api/v1/contexts", h.Contexts.List)
 
 	// Generic resources.

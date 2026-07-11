@@ -32,8 +32,15 @@ struct TablePayload: Decodable, Sendable {
         /// Stub used to build follow-up get/yaml/delete URLs — never parse cells.
         let object: ObjectStub
 
+        /// Stable identity for table selection — must not change between reloads.
+        /// UIDs from the server can appear on a later fetch after being absent on
+        /// the first, which would reshuffle IDs and crash NSTableView selection.
         var id: String {
-            object.uid ?? "\(object.namespace ?? "")/\(object.name)"
+            let namespace = object.namespace ?? ""
+            if namespace.isEmpty {
+                return object.name
+            }
+            return "\(namespace)/\(object.name)"
         }
     }
 

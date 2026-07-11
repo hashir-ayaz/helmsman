@@ -23,6 +23,26 @@ actor KubeAPIClient {
 
     // MARK: - Read API
 
+    /// Liveness probe — succeeds when the HTTP server is accepting connections.
+    func checkHealth() async throws {
+        guard let url = URL(string: Self.baseURL + "/health") else { throw APIError.invalidURL }
+        let (_, response): (Data, URLResponse)
+        do {
+            (_, response) = try await session.data(from: url)
+        } catch {
+            throw APIError.transport(error.localizedDescription)
+        }
+        guard let http = response as? HTTPURLResponse,
+              (200...299).contains(http.statusCode) else {
+            throw APIError.invalidResponse
+        }
+    }
+
+    /// Cluster readiness — kubeconfig loaded and contexts available.
+    func fetchStatus() async throws -> ClusterStatus {
+        try await getEnveloped("/api/v1/status")
+    }
+
     func listContexts() async throws -> [ContextInfo] {
         try await getEnveloped("/api/v1/contexts")
     }
