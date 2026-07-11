@@ -27,3 +27,19 @@ func TestStatusFromK8sErr(t *testing.T) {
 		}
 	}
 }
+
+func TestStatusFromK8sErrStatusMessage(t *testing.T) {
+	err := &apierrors.StatusError{
+		ErrStatus: metav1.Status{
+			Message: "apply failed: field is immutable",
+			Reason:  metav1.StatusReasonInternalError,
+		},
+	}
+	code, msg := statusFromK8sErr(err)
+	if code != http.StatusInternalServerError {
+		t.Errorf("code = %d, want 500", code)
+	}
+	if msg != "apply failed: field is immutable" {
+		t.Errorf("msg = %q", msg)
+	}
+}

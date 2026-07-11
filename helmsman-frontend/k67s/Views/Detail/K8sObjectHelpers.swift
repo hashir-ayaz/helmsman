@@ -19,6 +19,12 @@ enum K8s {
         return "\(s)s"
     }
 
+    /// RFC3339 timestamp for display (pass-through when already formatted).
+    static func formatTimestamp(_ timestamp: String?) -> String? {
+        guard let timestamp, !timestamp.isEmpty else { return nil }
+        return timestamp
+    }
+
     /// Controlling owner as "Kind/name", preferring the controller=true ref.
     static func controlledBy(_ object: JSONValue) -> String? {
         guard let refs = object["metadata"]?["ownerReferences"]?.arrayValue,
@@ -51,12 +57,50 @@ enum K8s {
         var id: String { name }
     }
 
+    /// Parsed container state for display.
+    struct ContainerStateDetail {
+        let phase: String
+        let reason: String?
+        let message: String?
+        let startedAt: String?
+        let finishedAt: String?
+        let exitCode: Int?
+
+        var chipLabel: String {
+            if phase == "Running" { return "Running" }
+            if let reason, !reason.isEmpty { return reason }
+            return phase
+        }
+
+        var lastStateSummary: String? {
+            guard phase != "Running" else { return nil }
+            var parts = [phase]
+            if let reason, !reason.isEmpty { parts.append(reason) }
+            if let exitCode { parts.append("exit \(exitCode)") }
+            return parts.joined(separator: ": ")
+        }
+    }
+
     /// Joins spec.containers[] with status.containerStatuses[] by name.
     static func containerPairs(_ object: JSONValue) -> [ContainerPair] {
-        guard let spec = object["spec"]?["containers"]?.arrayValue else { return [] }
-        let statuses = object["status"]?["containerStatuses"]?.arrayValue ?? []
+        pairContainers(
+            spec: object["spec"]?["containers"]?.arrayValue,
+            statuses: object["status"]?["containerStatuses"]?.arrayValue
+        )
+    }
+
+    /// Joins spec.initContainers[] with status.initContainerStatuses[] by name.
+    static func initContainerPairs(_ object: JSONValue) -> [ContainerPair] {
+        pairContainers(
+            spec: object["spec"]?["initContainers"]?.arrayValue,
+            statuses: object["status"]?["initContainerStatuses"]?.arrayValue
+        )
+    }
+
+    private static func pairContainers(spec: [JSONValue]?, statuses: [JSONValue]?) -> [ContainerPair] {
+        guard let spec else { return [] }
         var byName: [String: JSONValue] = [:]
-        for st in statuses {
+        for st in statuses ?? [] {
             if let n = st["name"]?.stringValue { byName[n] = st }
         }
         return spec.compactMap { container in
@@ -67,12 +111,43 @@ enum K8s {
 
     /// Human label for a container's runtime state.
     static func containerStateLabel(_ status: JSONValue?) -> String {
-        guard let state = status?["state"]?.objectValue else {
-            return status?["ready"]?.boolValue == true ? "Running" : "Unknown"
+        containerStateDetail(status?["state"])?.chipLabel
+            ?? (status?["ready"]?.boolValue == true ? "Running" : "Unknown")
+    }
+
+    /// Extracts running / waiting / terminated details from a state object.
+    static func containerStateDetail(_ state: JSONValue?) -> ContainerStateDetail? {
+        guard let state = state?.objectValue else { return nil }
+        if let running = state["running"]?.objectValue {
+            return ContainerStateDetail(
+                phase: "Running",
+                reason: nil,
+                message: nil,
+                startedAt: running["startedAt"]?.stringValue,
+                finishedAt: nil,
+                exitCode: nil
+            )
         }
-        if state["running"] != nil { return "Running" }
-        if let reason = state["waiting"]?["reason"]?.stringValue { return reason }
-        if let reason = state["terminated"]?["reason"]?.stringValue { return reason }
-        return "Unknown"
+        if let waiting = state["waiting"]?.objectValue {
+            return ContainerStateDetail(
+                phase: "Waiting",
+                reason: waiting["reason"]?.stringValue,
+                message: waiting["message"]?.stringValue,
+                startedAt: nil,
+                finishedAt: nil,
+                exitCode: nil
+            )
+        }
+        if let terminated = state["terminated"]?.objectValue {
+            return ContainerStateDetail(
+                phase: "Terminated",
+                reason: terminated["reason"]?.stringValue,
+                message: terminated["message"]?.stringValue,
+                startedAt: terminated["startedAt"]?.stringValue,
+                finishedAt: terminated["finishedAt"]?.stringValue,
+                exitCode: terminated["exitCode"]?.intValue
+            )
+        }
+        return nil
     }
 }

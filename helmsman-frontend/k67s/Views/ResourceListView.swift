@@ -41,7 +41,6 @@ struct ResourceListView: View {
         .rowActionAlerts(actions)
         .task(id: taskKey) {
             actions.resource = resource
-            model.willReload = { selectedRowID = nil }
             actions.onMutated = {
                 // Clear stale selection and cancel any pending watch-triggered
                 // reload before issuing the authoritative post-mutation reload.

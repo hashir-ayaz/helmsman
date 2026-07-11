@@ -36,10 +36,18 @@ struct ResourceDetailView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
         .task {
-            await model.loadObject(
+            async let objectLoad: Void = model.loadObject(
                 ctx: app.selectedContext, ns: namespace,
                 resource: resource, name: row.object.name
             )
+            async let eventsLoad: Void = resource.isPods
+                ? model.loadEvents(
+                    ctx: app.selectedContext,
+                    ns: namespace,
+                    podName: row.object.name
+                )
+                : ()
+            _ = await (objectLoad, eventsLoad)
         }
         .onChange(of: tab) { _, newTab in
             guard newTab == .yaml else { return }
@@ -88,7 +96,11 @@ struct ResourceDetailView: View {
                 if model.isLoadingObject {
                     ProgressView()
                 } else if let object = model.object {
-                    ResourceOverview(object: object)
+                    ResourceOverview(
+                        object: object,
+                        podEvents: model.events,
+                        isLoadingPodEvents: model.isLoadingEvents
+                    )
                 } else if let error = model.error {
                     Text(error.errorDescription ?? "Error")
                         .font(.callout)

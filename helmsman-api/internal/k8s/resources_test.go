@@ -58,3 +58,47 @@ func TestParseApply(t *testing.T) {
 		t.Errorf("name = %q", obj.GetName())
 	}
 }
+
+func TestStripServerFields(t *testing.T) {
+	obj := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apps/v1",
+		"kind":       "Deployment",
+		"metadata": map[string]any{
+			"name":                       "web",
+			"namespace":                  "default",
+			"uid":                        "abc",
+			"resourceVersion":            "42",
+			"generation":                 int64(3),
+			"creationTimestamp":          "2024-01-01T00:00:00Z",
+			"deletionTimestamp":          "2024-01-02T00:00:00Z",
+			"deletionGracePeriodSeconds": int64(30),
+			"ownerReferences": []any{
+				map[string]any{"apiVersion": "apps/v1", "kind": "ReplicaSet", "name": "web-abc"},
+			},
+			"annotations": map[string]any{
+				"kubectl.kubernetes.io/last-applied-configuration": "{}",
+				"deployment.kubernetes.io/revision":                "2",
+			},
+		},
+		"status": map[string]any{"replicas": int64(1)},
+	}}
+
+	stripServerFields(obj)
+
+	if _, ok, _ := unstructured.NestedFieldCopy(obj.Object, "status"); ok {
+		t.Error("expected status stripped")
+	}
+	if _, ok, _ := unstructured.NestedFieldCopy(obj.Object, "metadata", "uid"); ok {
+		t.Error("expected uid stripped")
+	}
+	if _, ok, _ := unstructured.NestedFieldCopy(obj.Object, "metadata", "ownerReferences"); ok {
+		t.Error("expected ownerReferences stripped")
+	}
+	ann, _, _ := unstructured.NestedStringMap(obj.Object, "metadata", "annotations")
+	if _, ok := ann[lastAppliedConfigAnnotation]; ok {
+		t.Error("expected last-applied-configuration annotation stripped")
+	}
+	if ann["deployment.kubernetes.io/revision"] != "2" {
+		t.Error("expected other annotations preserved")
+	}
+}

@@ -27,6 +27,7 @@ struct ConfigOverview: View {
                 FlowLayout(spacing: 4) {
                     ForEach(keys.sorted(), id: \.self) { Chip(text: $0, tint: .purple) }
                 }
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
     }

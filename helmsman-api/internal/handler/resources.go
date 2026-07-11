@@ -2,6 +2,7 @@ package handler
 
 import (
 	"io"
+	"log"
 	"net/http"
 
 	"github.com/hashir-ayaz/helmsman/helmsman-api/internal/cluster"
@@ -184,6 +185,7 @@ func (h *ResourceHandler) Apply(w http.ResponseWriter, r *http.Request) {
 	ref := k8s.ResourceRef{GVR: mapping.Resource, Namespaced: mapping.Scope.Name() == meta.RESTScopeNameNamespace}
 	res, err := k8s.Apply(r.Context(), b.Dynamic, ref, obj)
 	if err != nil {
+		log.Printf("apply %s/%s: %v", ref.GVR.Resource, obj.GetName(), err)
 		h.fail(w, err)
 		return
 	}

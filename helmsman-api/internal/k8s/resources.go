@@ -144,6 +144,8 @@ func Apply(ctx context.Context, dyn dynamic.Interface, ref ResourceRef, obj *uns
 	return res, nil
 }
 
+const lastAppliedConfigAnnotation = "kubectl.kubernetes.io/last-applied-configuration"
+
 // stripServerFields removes server-managed fields that server-side apply rejects
 // (notably metadata.managedFields) or that should not be carried in a manifest.
 // This lets a client round-trip a fetched object's YAML straight back into apply.
@@ -155,10 +157,27 @@ func stripServerFields(obj *unstructured.Unstructured) {
 		{"metadata", "creationTimestamp"},
 		{"metadata", "generation"},
 		{"metadata", "selfLink"},
+		{"metadata", "deletionTimestamp"},
+		{"metadata", "deletionGracePeriodSeconds"},
+		{"metadata", "ownerReferences"},
 		{"status"},
 	} {
 		unstructured.RemoveNestedField(obj.Object, field...)
 	}
+	stripLastAppliedAnnotation(obj)
+}
+
+func stripLastAppliedAnnotation(obj *unstructured.Unstructured) {
+	annotations, found, err := unstructured.NestedStringMap(obj.Object, "metadata", "annotations")
+	if err != nil || !found {
+		return
+	}
+	delete(annotations, lastAppliedConfigAnnotation)
+	if len(annotations) == 0 {
+		unstructured.RemoveNestedField(obj.Object, "metadata", "annotations")
+		return
+	}
+	_ = unstructured.SetNestedStringMap(obj.Object, annotations, "metadata", "annotations")
 }
 
 func ptrBool(b bool) *bool { return &b }

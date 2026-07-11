@@ -4,7 +4,13 @@ import SwiftUI
 @Observable
 @MainActor
 final class YAMLEditorModel {
-    var text = ""
+    var text = "" {
+        didSet {
+            if text != originalText {
+                applied = false
+            }
+        }
+    }
     private(set) var originalText = ""
     private(set) var kind = ""
     private(set) var isLoading = false
@@ -39,6 +45,7 @@ final class YAMLEditorModel {
             text = yaml
             originalText = yaml
             kind = Self.parseKind(from: yaml)
+            applied = false
         } catch let apiError as APIError {
             error = apiError
         } catch {

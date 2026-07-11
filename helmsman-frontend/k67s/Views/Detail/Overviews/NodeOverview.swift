@@ -39,6 +39,7 @@ struct NodeOverview: View {
                         Chip(text: "\(key) \(capacity[key]?.displayString ?? "")", tint: .teal)
                     }
                 }
+                .fixedSize(horizontal: false, vertical: true)
             }
         }
 

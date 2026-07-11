@@ -32,6 +32,17 @@ func statusFromK8sErr(err error) (int, string) {
 	case meta.IsNoMatchError(err):
 		return http.StatusNotFound, err.Error()
 	default:
+		if statusErr, ok := err.(apierrors.APIStatus); ok {
+			if msg := statusErr.Status().Message; msg != "" {
+				return http.StatusInternalServerError, msg
+			}
+			if reason := string(statusErr.Status().Reason); reason != "" {
+				return http.StatusInternalServerError, reason
+			}
+		}
+		if msg := err.Error(); msg != "" {
+			return http.StatusInternalServerError, msg
+		}
 		return http.StatusInternalServerError, "internal error"
 	}
 }

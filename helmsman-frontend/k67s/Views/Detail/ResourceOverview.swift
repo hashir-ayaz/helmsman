@@ -3,6 +3,8 @@ import SwiftUI
 /// Routes to a kind-specific overview, then appends shared labels/annotations.
 struct ResourceOverview: View {
     let object: JSONValue
+    var podEvents: [ResourceDetailModel.PodRelatedEvent] = []
+    var isLoadingPodEvents = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -14,7 +16,8 @@ struct ResourceOverview: View {
 
     @ViewBuilder private var kindOverview: some View {
         switch object["kind"]?.stringValue {
-        case "Pod": PodOverview(object: object)
+        case "Pod":
+            PodOverview(object: object, events: podEvents, isLoadingEvents: isLoadingPodEvents)
         case "Deployment", "StatefulSet", "DaemonSet", "ReplicaSet":
             WorkloadOverview(object: object)
         case "Service": ServiceOverview(object: object)

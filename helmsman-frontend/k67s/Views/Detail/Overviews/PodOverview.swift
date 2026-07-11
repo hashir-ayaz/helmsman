@@ -2,6 +2,8 @@ import SwiftUI
 
 struct PodOverview: View {
     let object: JSONValue
+    var events: [ResourceDetailModel.PodRelatedEvent] = []
+    var isLoadingEvents = false
 
     var body: some View {
         DetailSection(title: "Overview") {
@@ -13,7 +15,12 @@ struct PodOverview: View {
                 if let ready = K8s.podReady(object) {
                     DetailRow(label: "Ready", value: ready)
                 }
-                DetailRow(label: "Restarts", value: "\(K8s.podRestarts(object))")
+                let restarts = K8s.podRestarts(object)
+                DetailRow(
+                    label: "Restarts",
+                    value: "\(restarts)",
+                    valueColor: restarts > 0 ? .orange : nil
+                )
                 if let age = K8s.age(from: object["metadata"]?["creationTimestamp"]?.stringValue) {
                     DetailRow(label: "Age", value: age)
                 }
@@ -41,9 +48,19 @@ struct PodOverview: View {
 
         let containers = K8s.containerPairs(object)
         if !containers.isEmpty {
-            DetailSection(title: "Containers (\(containers.count))") {
+            let title = K8s.podReady(object).map { "Containers (\($0))" } ?? "Containers (\(containers.count))"
+            DetailSection(title: title) {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(containers) { ContainerCard(pair: $0) }
+                }
+            }
+        }
+
+        let initContainers = K8s.initContainerPairs(object)
+        if !initContainers.isEmpty {
+            DetailSection(title: "Init Containers (\(initContainers.count))") {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(initContainers) { ContainerCard(pair: $0) }
                 }
             }
         }
@@ -68,6 +85,25 @@ struct PodOverview: View {
                         Text(parts.joined(separator: ": "))
                             .font(.caption).foregroundStyle(.secondary)
                     }
+                }
+            }
+        }
+
+        eventsSection
+    }
+
+    @ViewBuilder
+    private var eventsSection: some View {
+        DetailSection(title: "Events") {
+            if isLoadingEvents {
+                ProgressView().controlSize(.small)
+            } else if events.isEmpty {
+                Text("No events")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+            } else {
+                VStack(alignment: .leading, spacing: 0) {
+                    ForEach(events) { PodEventRowView(event: $0) }
                 }
             }
         }
