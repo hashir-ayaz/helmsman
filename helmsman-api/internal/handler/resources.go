@@ -43,7 +43,15 @@ func (h *ResourceHandler) List(w http.ResponseWriter, r *http.Request) {
 		h.fail(w, err)
 		return
 	}
-	writeSuccess(w, tableToPayload(table))
+	payload := tableToPayload(table)
+	if isEventList(ref) {
+		sortPayloadByLastSeenDesc(&payload)
+	}
+	writeSuccess(w, payload)
+}
+
+func isEventList(ref k8s.ResourceRef) bool {
+	return ref.GVR.Resource == "events"
 }
 
 // Get godoc
