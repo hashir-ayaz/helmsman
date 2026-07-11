@@ -12,6 +12,11 @@ final class ResourceListModel {
     var showWide = false
     private(set) var isWatching = false
     private var reloadWork: Task<Void, Never>?
+    private var loadGeneration = 0
+
+    /// Called on the main actor immediately before `payload` is replaced with a
+    /// successful fetch. Use to clear AppKit Table selection before row diffs.
+    var willMutatePayload: (@MainActor () -> Void)?
 
     /// Cancels any debounced watch-triggered reload. Call before an
     /// immediate mutation-triggered reload to prevent a stale second load.
@@ -79,23 +84,45 @@ final class ResourceListModel {
         }
     }
 
+    /// Loads the table payload. Concurrent callers coalesce: only one network
+    /// fetch runs at a time; newer requests trigger a follow-up load when the
+  /// current one finishes.
     func load(ctx: String, ns: String?, resource: ResourceType) async {
+        loadGeneration += 1
+        var generation = loadGeneration
+
+        repeat {
+            await performLoad(ctx: ctx, ns: ns, resource: resource)
+            if generation == loadGeneration { return }
+            generation = loadGeneration
+        } while true
+    }
+
+    private func performLoad(ctx: String, ns: String?, resource: ResourceType) async {
         isLoading = true
-        error = nil
+        if payload == nil { error = nil }
         defer { isLoading = false }
+
         let effectiveNS = resource.scope == .cluster ? nil : ns
         do {
-            payload = try await KubeAPIClient.shared.listResources(
+            let newPayload = try await KubeAPIClient.shared.listResources(
                 ctx: ctx,
                 ns: effectiveNS,
                 resource: resource.resource
             )
+            willMutatePayload?()
+            payload = newPayload
+            error = nil
         } catch let apiError as APIError {
             error = apiError
-            payload = nil
+            if payload == nil {
+                payload = nil
+            }
         } catch {
             self.error = .transport(error.localizedDescription)
-            payload = nil
+            if payload == nil {
+                payload = nil
+            }
         }
     }
 

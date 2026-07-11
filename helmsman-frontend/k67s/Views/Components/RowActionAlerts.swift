@@ -73,7 +73,7 @@ struct RowActionAlerts: ViewModifier {
                     ns: target.ns,
                     workload: target.workload,
                     name: target.row.object.name,
-                    onUndone: actions.onMutated
+                    onUndone: { actions.onMutated(nil) }
                 )
             }
 

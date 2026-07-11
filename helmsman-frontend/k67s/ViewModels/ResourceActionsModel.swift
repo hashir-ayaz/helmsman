@@ -31,7 +31,7 @@ final class ResourceActionsModel {
     /// The resource being acted on (its API path segment + restart workload).
     var resource: ResourceType?
 
-    var onMutated: () -> Void = {}
+    var onMutated: (TablePayload.Row.ID?) -> Void = { _ in }
 
     private var toastDismissTask: Task<Void, Never>?
 
@@ -103,7 +103,8 @@ final class ResourceActionsModel {
 
     func performDelete(_ row: TablePayload.Row?) async {
         guard let row, let resource else { return }
-        await run {
+        let rowID = row.id
+        await run(mutatedRowID: rowID) {
             try await KubeAPIClient.shared.delete(
                 ns: row.object.namespace ?? "", resource: resource.resource, name: row.object.name
             )
@@ -165,13 +166,13 @@ final class ResourceActionsModel {
         drainTarget = nil
     }
 
-    private func run(_ operation: () async throws -> Void) async {
+    private func run(mutatedRowID: TablePayload.Row.ID? = nil, _ operation: () async throws -> Void) async {
         isBusy = true
         actionError = nil
         defer { isBusy = false }
         do {
             try await operation()
-            onMutated()
+            onMutated(mutatedRowID)
         } catch let apiError as APIError {
             actionError = apiError
         } catch {

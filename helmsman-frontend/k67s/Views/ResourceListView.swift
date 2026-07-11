@@ -10,13 +10,16 @@ struct ResourceListView: View {
     @Environment(\.openWindow) private var openWindow
     @State private var model = ResourceListModel()
     @State private var actions = ResourceActionsModel()
+    /// AppKit Table selection — cleared before payload swaps to avoid crashes.
     @State private var selectedRowID: TablePayload.Row.ID?
+    /// Detail pane identity — survives benign watch reloads while the row exists.
+    @State private var inspectedRowID: TablePayload.Row.ID?
 
     private var isPods: Bool { resource.isPods }
     private var isEvents: Bool { resource.resource == "events" }
 
-    private var selectedRow: TablePayload.Row? {
-        guard let id = selectedRowID else { return nil }
+    private var inspectedRow: TablePayload.Row? {
+        guard let id = inspectedRowID else { return nil }
         return model.payload?.rows.first { $0.id == id }
     }
 
@@ -29,7 +32,7 @@ struct ResourceListView: View {
         HSplitView {
             table
                 .overlay { overlay }
-            if let row = selectedRow {
+            if let row = inspectedRow {
                 ResourceDetailView(app: app, resource: resource, row: row)
                     .id(row.id)
                     .frame(minWidth: 320, idealWidth: 380, maxWidth: 480)
@@ -41,19 +44,18 @@ struct ResourceListView: View {
         .rowActionAlerts(actions)
         .task(id: taskKey) {
             actions.resource = resource
-            actions.onMutated = {
-                // Clear stale selection and cancel any pending watch-triggered
-                // reload before issuing the authoritative post-mutation reload.
-                // Without this, the watch DELETED event fires a second load()
-                // ~300 ms later; if that second load fails, payload becomes nil
-                // while selectedRowID still references the deleted row, causing
-                // an NSTableView assertion crash (invalid selection index).
+            model.willMutatePayload = { selectedRowID = nil }
+            actions.onMutated = { mutatedRowID in
                 selectedRowID = nil
+                if mutatedRowID == inspectedRowID {
+                    inspectedRowID = nil
+                }
                 model.cancelPendingReload()
-                Task { await reload() }
+                Task { await reloadAndSyncSelection() }
             }
             selectedRowID = nil
-            await reload()
+            inspectedRowID = nil
+            await reloadAndSyncSelection()
             await model.watch(ctx: app.selectedContext, ns: app.namespaceParam, resource: resource)
         }
     }
@@ -81,11 +83,18 @@ struct ResourceListView: View {
             if let selected = selectedRowID, !ids.contains(selected) {
                 selectedRowID = nil
             }
+            if let inspected = inspectedRowID {
+                if !ids.contains(inspected) {
+                    inspectedRowID = nil
+                } else if selectedRowID == nil {
+                    selectedRowID = inspected
+                }
+            }
         }
         .contextMenu(forSelectionType: TablePayload.Row.ID.self) { ids in
             rowMenu(for: ids)
         } primaryAction: { ids in
-            selectedRowID = ids.first
+            inspect(ids.first)
         }
     }
 
@@ -96,7 +105,7 @@ struct ResourceListView: View {
             let canEditSingleObject = hasNamespace || resource.scope == .cluster
 
             // ── Inspect / Logs ──────────────────────────────────────────────
-            Button("Inspect") { selectedRowID = id }
+            Button("Inspect") { inspect(id) }
 
             if isPods {
                 Button("Logs") { openLogs(row: row, previous: false) }
@@ -181,6 +190,11 @@ struct ResourceListView: View {
                 }
             }
         }
+    }
+
+    private func inspect(_ id: TablePayload.Row.ID?) {
+        selectedRowID = id
+        inspectedRowID = id
     }
 
     private func openLogs(row: TablePayload.Row, previous: Bool) {
@@ -302,7 +316,7 @@ struct ResourceListView: View {
             ProgressView()
         } else if let error = model.error {
             ErrorStateView(error: error) {
-                Task { await reload() }
+                Task { await reloadAndSyncSelection() }
             }
         } else if model.payload?.rows.isEmpty == true {
             ContentUnavailableView("No \(resource.title)", systemImage: resource.symbol)
@@ -322,7 +336,7 @@ struct ResourceListView: View {
             }
             .help("Show all columns")
             Button {
-                Task { await reload() }
+                Task { await reloadAndSyncSelection() }
             } label: {
                 Image(systemName: "arrow.clockwise")
             }
@@ -331,7 +345,18 @@ struct ResourceListView: View {
         }
     }
 
-    private func reload() async {
+    private func reloadAndSyncSelection() async {
         await model.load(ctx: app.selectedContext, ns: app.namespaceParam, resource: resource)
+        syncSelectionAfterReload()
+    }
+
+    private func syncSelectionAfterReload() {
+        let ids = Set(model.payload?.rows.map(\.id) ?? [])
+        guard let inspected = inspectedRowID else { return }
+        if ids.contains(inspected) {
+            selectedRowID = inspected
+        } else {
+            inspectedRowID = nil
+        }
     }
 }
