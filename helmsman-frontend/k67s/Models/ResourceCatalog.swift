@@ -112,7 +112,10 @@ extension ResourceType {
         .init(title: "StorageClasses", resource: "storageclasses.storage.k8s.io", symbol: "square.stack", scope: .cluster, section: .storage),
 
         // Access Control
+        .init(title: "ServiceAccounts", resource: "serviceaccounts", symbol: "person.crop.circle", scope: .namespaced, section: .accessControl),
+        .init(title: "ClusterRoles", resource: "clusterroles.rbac.authorization.k8s.io", symbol: "person.badge.key.fill", scope: .cluster, section: .accessControl),
         .init(title: "Roles", resource: "roles.rbac.authorization.k8s.io", symbol: "person.badge.key", scope: .namespaced, section: .accessControl),
+        .init(title: "ClusterRoleBindings", resource: "clusterrolebindings.rbac.authorization.k8s.io", symbol: "link.circle", scope: .cluster, section: .accessControl),
         .init(title: "RoleBindings", resource: "rolebindings.rbac.authorization.k8s.io", symbol: "link", scope: .namespaced, section: .accessControl),
 
         // Cluster
