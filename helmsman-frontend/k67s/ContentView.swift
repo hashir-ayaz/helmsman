@@ -24,10 +24,11 @@ struct ContentView: View {
         NavigationSplitView {
             SidebarView(app: app)
         } detail: {
-            if let resource = app.selectedResource {
+            switch app.selectedDestination {
+            case .overview:
+                ClusterOverviewView(app: app)
+            case .resource(let resource):
                 ResourceListView(app: app, resource: resource)
-            } else {
-                ContentUnavailableView("Select a Resource", systemImage: "square.grid.2x2")
             }
         }
     }

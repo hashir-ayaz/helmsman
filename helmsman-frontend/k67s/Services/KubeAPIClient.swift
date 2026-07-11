@@ -51,9 +51,16 @@ actor KubeAPIClient {
         ctx: String = "_current",
         ns: String?,
         resource: String,
-        labelSelector: String? = nil
+        labelSelector: String? = nil,
+        fieldSelector: String? = nil
     ) async throws -> TablePayload {
-        let query = labelSelector.map { [URLQueryItem(name: "labelSelector", value: $0)] } ?? []
+        var query: [URLQueryItem] = []
+        if let labelSelector {
+            query.append(URLQueryItem(name: "labelSelector", value: labelSelector))
+        }
+        if let fieldSelector {
+            query.append(URLQueryItem(name: "fieldSelector", value: fieldSelector))
+        }
         return try await getEnveloped(listPath(ctx: ctx, ns: ns, resource: resource), query: query)
     }
 

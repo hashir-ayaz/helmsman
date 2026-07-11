@@ -1,5 +1,11 @@
 import SwiftUI
 
+/// Sidebar navigation — Overview is a custom dashboard; resources use the generic list.
+enum SidebarDestination: Hashable {
+    case overview
+    case resource(ResourceType)
+}
+
 /// App-wide state: selected context/namespace/resource, plus the lists used to
 /// populate the sidebar pickers.
 @Observable
@@ -17,7 +23,16 @@ final class AppModel {
     var selectedContext = "_current"
     var namespaces: [String] = []
     var selectedNamespace = AppModel.allNamespaces
-    var selectedResource: ResourceType? = ResourceType.all.first
+    var selectedDestination: SidebarDestination = .overview
+
+    var selectedResource: ResourceType? {
+        if case .resource(let resource) = selectedDestination { return resource }
+        return nil
+    }
+
+    func selectResource(_ resource: ResourceType) {
+        selectedDestination = .resource(resource)
+    }
 
     /// `nil` means "all namespaces" (the cluster-scoped list path).
     var namespaceParam: String? {

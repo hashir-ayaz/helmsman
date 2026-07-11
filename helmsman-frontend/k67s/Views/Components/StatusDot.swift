@@ -25,4 +25,25 @@ enum ResourceColors {
             return .secondary
         }
     }
+
+    /// Event reasons that indicate a real problem (scheduling failures, mount errors, etc.).
+    static func isCriticalEventReason(_ reason: String) -> Bool {
+        let normalized = reason.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalized.isEmpty else { return false }
+
+        let lower = normalized.lowercased()
+        if lower.hasPrefix("failed") { return true }
+
+        switch lower {
+        case "backoff", "unhealthy", "oomkilling", "evicted",
+             "evictionthresholdmet", "networknotready", "errimageneverpull":
+            return true
+        default:
+            return false
+        }
+    }
+
+    static func eventReasonColor(_ reason: String) -> Color {
+        isCriticalEventReason(reason) ? .red : .primary
+    }
 }

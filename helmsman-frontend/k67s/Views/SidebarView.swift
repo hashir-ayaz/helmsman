@@ -7,14 +7,19 @@ struct SidebarView: View {
         VStack(spacing: 0) {
             pickers
             Divider()
-            List(selection: $app.selectedResource) {
+            List(selection: $app.selectedDestination) {
+                Section("General") {
+                    Label("Overview", systemImage: "square.grid.2x2")
+                        .tag(SidebarDestination.overview)
+                }
+
                 ForEach(ResourceSection.allCases, id: \.self) { section in
                     let items = ResourceType.all.filter { $0.section == section }
                     if !items.isEmpty {
                         Section(section.rawValue) {
                             ForEach(items) { resource in
                                 Label(resource.title, systemImage: resource.symbol)
-                                    .tag(resource)
+                                    .tag(SidebarDestination.resource(resource))
                             }
                         }
                     }

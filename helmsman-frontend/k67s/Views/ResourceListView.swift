@@ -13,6 +13,7 @@ struct ResourceListView: View {
     @State private var selectedRowID: TablePayload.Row.ID?
 
     private var isPods: Bool { resource.isPods }
+    private var isEvents: Bool { resource.resource == "events" }
 
     private var selectedRow: TablePayload.Row? {
         guard let id = selectedRowID else { return nil }
@@ -224,7 +225,7 @@ struct ResourceListView: View {
 
         if columnIndex == model.visibleColumns.first?.id {
             HStack(spacing: 6) {
-                if let status = model.leadingStatus(for: row) {
+                if let status = leadingStatus(for: row) {
                     StatusDot(status: status)
                 }
                 Text(text).lineLimit(1)
@@ -237,11 +238,32 @@ struct ResourceListView: View {
             Text(text)
                 .foregroundStyle(.tint)
                 .fontWeight(.medium)
+        } else if isEvents && columnName == "reason" {
+            Text(text)
+                .foregroundStyle(ResourceColors.eventReasonColor(text))
+                .fontWeight(ResourceColors.isCriticalEventReason(text) ? .medium : .regular)
+                .lineLimit(1)
         } else if columnName == "port(s)" || columnName == "ports" {
             PortChipsView(value: text)
         } else {
             Text(text).lineLimit(1)
         }
+    }
+
+    /// Status dot for the leading column — events use reason severity; other
+    /// resources delegate to the table model's status/ready heuristics.
+    private func leadingStatus(for row: TablePayload.Row) -> String? {
+        if isEvents, let reason = eventReason(for: row) {
+            return ResourceColors.isCriticalEventReason(reason) ? "Failed" : "Normal"
+        }
+        return model.leadingStatus(for: row)
+    }
+
+    private func eventReason(for row: TablePayload.Row) -> String? {
+        guard let index = model.columns.firstIndex(where: { $0.name.lowercased() == "reason" }) else {
+            return nil
+        }
+        return row.cells[safe: index]?.displayString
     }
 
     @ViewBuilder
