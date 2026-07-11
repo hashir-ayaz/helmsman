@@ -66,6 +66,9 @@ struct ResourceType: Identifiable, Hashable, Sendable {
 
     /// True for Nodes — drain cordons the node and evicts all non-daemonset pods.
     var supportsDrain: Bool { resource == "nodes" }
+
+    /// True for PVCs — resize increases spec.resources.requests.storage.
+    var supportsResize: Bool { resource == "persistentvolumeclaims" }
 }
 
 enum ResourceSection: String, CaseIterable, Hashable, Sendable {

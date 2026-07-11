@@ -163,6 +163,13 @@ struct ResourceListView: View {
                 }
             }
 
+            if resource.supportsResize {
+                Divider()
+                Button("Resize…") {
+                    actions.beginResize(pvcResizeTarget(for: row))
+                }
+            }
+
             // ── Danger zone ─────────────────────────────────────────────────
             if canEditSingleObject || resource.supportsCancel {
                 Divider()
@@ -209,6 +216,30 @@ struct ResourceListView: View {
               let cell = row.cells[safe: readyIndex]?.displayString
         else { return "" }
         return cell.split(separator: "/").last.map(String.init) ?? cell
+    }
+
+    private func pvcResizeTarget(for row: TablePayload.Row) -> ResizePVCTarget {
+        let request = tableCell(row, named: ["Request"]) ?? "—"
+        let parsed = ResizePVCTarget.parseQuantity(request)
+        return ResizePVCTarget(
+            row: row,
+            currentRequest: request,
+            capacity: tableCell(row, named: ["Capacity"]) ?? "—",
+            storageClass: tableCell(row, named: ["Storage Class", "StorageClass", "Class"]) ?? "—",
+            initialValue: parsed.value,
+            initialUnit: parsed.unit
+        )
+    }
+
+    private func tableCell(_ row: TablePayload.Row, named names: [String]) -> String? {
+        for name in names {
+            if let index = model.columns.firstIndex(where: { $0.name.lowercased() == name.lowercased() }),
+               let value = row.cells[safe: index]?.displayString,
+               !value.isEmpty {
+                return value
+            }
+        }
+        return nil
     }
 
     private func copyToPasteboard(_ string: String) {

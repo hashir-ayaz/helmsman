@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"net/http"
 
+	"k8s.io/apimachinery/pkg/api/resource"
+
 	"github.com/hashir-ayaz/helmsman/helmsman-api/internal/cluster"
 	"github.com/hashir-ayaz/helmsman/helmsman-api/internal/k8s"
 )
@@ -160,6 +162,51 @@ func (h *ActionHandler) CancelJob(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeSuccess(w, map[string]string{"cancelled": r.PathValue("name")})
+}
+
+type resizePVCRequest struct {
+	Storage string `json:"storage"`
+}
+
+// ResizePVC godoc
+//
+//	@Summary	Resize a PersistentVolumeClaim (increase storage request)
+//	@Tags		actions
+//	@Accept		json
+//	@Produce	json
+//	@Router		/api/v1/contexts/{ctx}/namespaces/{ns}/persistentvolumeclaims/{name}/resize [post]
+func (h *ActionHandler) ResizePVC(w http.ResponseWriter, r *http.Request) {
+	b, err := bundleFor(h.provider, r)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	var body resizePVCRequest
+	if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+		writeError(w, http.StatusBadRequest, "invalid resize request")
+		return
+	}
+	if body.Storage == "" {
+		writeError(w, http.StatusBadRequest, "storage is required")
+		return
+	}
+	qty, err := resource.ParseQuantity(body.Storage)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, "invalid storage quantity")
+		return
+	}
+	storage := qty.String()
+
+	ref, err := resolveRef(b, "persistentvolumeclaims")
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	if err := k8s.ResizePVC(r.Context(), b.Dynamic, ref, r.PathValue("ns"), r.PathValue("name"), storage); err != nil {
+		h.fail(w, err)
+		return
+	}
+	writeSuccess(w, map[string]any{"name": r.PathValue("name"), "storage": storage})
 }
 
 type drainRequest struct {

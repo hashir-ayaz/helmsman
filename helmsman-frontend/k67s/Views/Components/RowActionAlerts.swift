@@ -77,6 +77,11 @@ struct RowActionAlerts: ViewModifier {
                 )
             }
 
+            // PVC Resize sheet
+            .sheet(item: $actions.resizeTarget) { target in
+                ResizePVCSheet(actions: actions, target: target)
+            }
+
             // Generic error alert (last, catches all action errors)
             .alert(
                 "Action Failed",
@@ -89,6 +94,7 @@ struct RowActionAlerts: ViewModifier {
             } message: {
                 Text(actions.actionError?.errorDescription ?? "Unknown error")
             }
+            .bottomToast($actions.actionToast)
     }
 
     /// A Bool presentation binding derived from an optional row target.

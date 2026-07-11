@@ -50,6 +50,7 @@ func New(port string, h handler.Handlers) *Server {
 	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/suspend", h.Actions.Suspend)
 	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/resume", h.Actions.Resume)
 	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/jobs/{name}/cancel", h.Actions.CancelJob)
+	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/persistentvolumeclaims/{name}/resize", h.Actions.ResizePVC)
 
 	// Node drain.
 	mux.HandleFunc("POST /api/v1/contexts/{ctx}/nodes/{name}/drain", h.Actions.DrainNode)

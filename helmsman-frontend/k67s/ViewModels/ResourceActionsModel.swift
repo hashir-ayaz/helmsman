@@ -20,18 +20,58 @@ final class ResourceActionsModel {
     var rolloutHistoryTarget: RolloutHistoryTarget?
     var cancelTarget: TablePayload.Row?
     var drainTarget: TablePayload.Row?
+    var resizeTarget: ResizePVCTarget?
     var replicasText = ""
+    var resizeValueText = ""
+    var resizeUnit: PVCResizeUnit = .gi
     var isBusy = false
     var actionError: APIError?
+    var actionToast: String?
 
     /// The resource being acted on (its API path segment + restart workload).
     var resource: ResourceType?
 
     var onMutated: () -> Void = {}
 
+    private var toastDismissTask: Task<Void, Never>?
+
+    func showActionToast(_ message: String) {
+        toastDismissTask?.cancel()
+        actionToast = message
+        toastDismissTask = Task {
+            try? await Task.sleep(for: .seconds(4))
+            guard !Task.isCancelled else { return }
+            actionToast = nil
+        }
+    }
+
     func beginScale(_ row: TablePayload.Row, currentReplicas: String) {
         replicasText = currentReplicas
         scaleTarget = row
+    }
+
+    func beginResize(_ target: ResizePVCTarget) {
+        resizeValueText = target.initialValue
+        resizeUnit = PVCResizeUnit(rawValue: target.initialUnit) ?? .gi
+        resizeTarget = target
+    }
+
+    func performResize(_ target: ResizePVCTarget?) async {
+        guard let target else { return }
+        let value = resizeValueText.trimmingCharacters(in: .whitespaces)
+        guard !value.isEmpty, Double(value) != nil else { return }
+        let storage = "\(value)\(resizeUnit.rawValue)"
+        await run {
+            try await KubeAPIClient.shared.resizePVC(
+                ns: target.row.object.namespace ?? "",
+                name: target.row.object.name,
+                storage: storage
+            )
+        }
+        if actionError == nil {
+            showActionToast("Resize requested for \(target.namespaceName) to \(storage)")
+        }
+        resizeTarget = nil
     }
 
     // The target row is passed in (captured synchronously by the alert button)

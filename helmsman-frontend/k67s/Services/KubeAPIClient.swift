@@ -191,6 +191,18 @@ actor KubeAPIClient {
         )
     }
 
+    // MARK: - PVC resize
+
+    func resizePVC(ctx: String = "_current", ns: String, name: String, storage: String) async throws {
+        let body = try JSONSerialization.data(withJSONObject: ["storage": storage])
+        let _: JSONValue = try await sendEnveloped(
+            method: "POST",
+            path: "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/persistentvolumeclaims/\(enc(name))/resize",
+            contentType: "application/json",
+            body: body
+        )
+    }
+
     // MARK: - Node drain
 
     func drainNode(ctx: String = "_current", name: String) async throws {
