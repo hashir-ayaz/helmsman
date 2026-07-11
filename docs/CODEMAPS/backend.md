@@ -1,4 +1,4 @@
-<!-- Generated: 2026-07-10 | Files scanned: 97 | Token estimate: ~950 -->
+<!-- Generated: 2026-07-11 | Files scanned: 102 | Token estimate: ~980 -->
 
 # Backend Architecture
 
@@ -19,10 +19,11 @@ main.go → config.Load() → cluster.NewProvider(KUBECONFIG)
 |------|----------------|
 | `cmd/server/main.go` | Entry; parent-death watcher for sidecar mode |
 | `internal/config/config.go` | `PORT` (8080), `KUBECONFIG` (~/.kube/config) |
-| `internal/cluster/provider.go` | Lazy per-context `ClientBundle` cache (RWMutex) |
+| `internal/cluster/provider.go` | Lazy per-context `ClientBundle` cache; `Status` readiness |
 | `internal/k8s/resolver.go` | URL slug → `ResourceRef` (GVR/GVK) via RESTMapper |
 | `internal/k8s/resources.go` | List (Table), Get, YAML, Delete, Patch, Apply |
 | `internal/k8s/actions.go` | Scale, Restart, SetSuspend, CancelJob |
+| `internal/k8s/pvc.go` | ResizePVC merge patch; rejects storage shrink |
 | `internal/k8s/rollout.go` | History, Undo, Pause, Resume (Deployment RS inspection) |
 | `internal/k8s/drain.go` | Cordon + evict (skip DaemonSet/mirror pods) |
 | `internal/k8s/watch.go` | Goroutine watch channel, reconnect, 410 Gone handling |
@@ -35,6 +36,9 @@ main.go → config.Load() → cluster.NewProvider(KUBECONFIG)
 ```
 GET  /health
 GET  /swagger/
+
+GET  /api/v1/status
+     → StatusHandler.Get → provider.Status() (ready, code, message)
 
 GET  /api/v1/contexts
      → ContextHandler.List → provider.Contexts()
@@ -57,6 +61,8 @@ POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/scale
 POST .../restart → ActionHandler.Restart → k8s.Restart
 POST .../suspend|/resume → ActionHandler → k8s.SetSuspend
 POST .../jobs/{name}/cancel → ActionHandler.CancelJob
+POST .../persistentvolumeclaims/{name}/resize {"storage":"10Gi"}
+     → ActionHandler.ResizePVC → k8s.ResizePVC
 POST /api/v1/contexts/{ctx}/nodes/{name}/drain → ActionHandler.DrainNode
 
 GET  /api/v1/contexts/{ctx}/[namespaces/{ns}/]resources/{resource}/watch
@@ -83,6 +89,7 @@ No auth middleware — relies on kubeconfig credentials and cluster RBAC.
 
 | Handler | k8s function |
 |---------|--------------|
+| `StatusHandler.Get` | `provider.Status()` |
 | `ResourceHandler.List` | `FetchTable` |
 | `ResourceHandler.Get` | `Get` |
 | `ResourceHandler.YAML` | `YAML` |
@@ -91,6 +98,7 @@ No auth middleware — relies on kubeconfig credentials and cluster RBAC.
 | `ActionHandler.Restart` | `Restart` |
 | `ActionHandler.Suspend/Resume` | `SetSuspend` |
 | `ActionHandler.CancelJob` | `CancelJob` |
+| `ActionHandler.ResizePVC` | `ResizePVC` |
 | `ActionHandler.DrainNode` | `DrainNode` |
 | `RolloutHandler.*` | `RolloutHistory/Undo/Pause/Resume` |
 | `WatchHandler.Stream` | `Watch` |
@@ -99,6 +107,8 @@ No auth middleware — relies on kubeconfig credentials and cluster RBAC.
 ## Error Handling
 
 `handler.statusFromK8sErr` maps k8s API errors → HTTP status (403 RBAC first-class).
+`cluster.NotReadyError` → HTTP 503 when kubeconfig unusable.
+`k8s.ErrPVCStorageShrink` → HTTP 400 on downsize attempts.
 
 ## Tests
 

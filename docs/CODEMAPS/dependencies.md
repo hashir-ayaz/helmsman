@@ -1,4 +1,4 @@
-<!-- Generated: 2026-07-10 | Files scanned: 97 | Token estimate: ~550 -->
+<!-- Generated: 2026-07-11 | Files scanned: 102 | Token estimate: ~560 -->
 
 # Dependencies
 

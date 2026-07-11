@@ -1,39 +1,63 @@
 Helmsman Codemap Scan Report
-Generated: 2026-07-10
-Files scanned: 97 (Go + Swift + TS/TSX, excluding node_modules and generated swagger)
+Generated: 2026-07-11
+Files scanned: 102 (37 Go + 58 Swift + 7 TS/TSX, excluding node_modules)
 
 === Scan Type ===
-INITIAL GENERATION — no prior codemaps found in docs/CODEMAPS/
+INCREMENTAL UPDATE — prior codemaps from 2026-07-10
 
-=== Files Created ===
-+ docs/CODEMAPS/architecture.md
-+ docs/CODEMAPS/backend.md
-+ docs/CODEMAPS/frontend.md
-+ docs/CODEMAPS/data.md
-+ docs/CODEMAPS/dependencies.md
+=== Diff Summary ===
+Estimated change: ~28% (under 30% threshold — updated in place)
 
-=== Architecture Summary ===
-Monorepo: helmsman-api (Go K8s proxy) + helmsman-frontend (SwiftUI macOS) + helmsman-landing (Next.js marketing)
+=== Files Updated ===
+~ docs/CODEMAPS/architecture.md
+~ docs/CODEMAPS/backend.md
+~ docs/CODEMAPS/frontend.md
+~ docs/CODEMAPS/data.md
+~ docs/CODEMAPS/dependencies.md
 
-Key routes: 25+ HTTP endpoints under /api/v1/contexts/{ctx}/...
-SSE streams: watch (resource lists), pod logs
-No application database — kubeconfig + K8s API only
+=== New Source Files Since Last Scan (+5 net) ===
++ helmsman-api/internal/k8s/pvc.go
++ helmsman-api/internal/k8s/pvc_test.go
++ helmsman-api/internal/handler/status.go
++ helmsman-api/internal/handler/status_test.go
++ helmsman-frontend/k67s/Models/ClusterStatus.swift
++ helmsman-frontend/k67s/Models/ResizePVCTarget.swift
++ helmsman-frontend/k67s/ViewModels/ClusterOverviewModel.swift
++ helmsman-frontend/k67s/Views/ClusterOverviewView.swift
++ helmsman-frontend/k67s/Views/Components/BottomToast.swift
++ helmsman-frontend/k67s/Views/Components/ResizePVCSheet.swift
 
-=== New Features Detected (vs CLAUDE.md baseline) ===
-+ Shell window (kubectl exec locally — frontend only, no API route)
-+ Embedded backend sidecar (BackendProcess + HELMSMAN_PARENT_WATCH)
-+ Kind-specific detail overviews (Pod, Workload, Node, Service, Config, Batch, Generic)
-+ StatefulSet/ReplicaSet scale support in ResourceCatalog
-+ Dynamic baseURL port selection (not hardcoded :8080 in packaged builds)
+=== Architecture Changes ===
++ GET /api/v1/status — cluster readiness (ready/code/message) before UI loads
++ POST .../persistentvolumeclaims/{name}/resize — PVC storage increase via merge patch
++ cluster.Status + NotReadyError → HTTP 503 for unusable kubeconfig
++ Cluster Overview dashboard (default sidebar destination)
++ App bootstrap phases: connecting → ready | failed (health poll + status gate)
++ Table mutation safety: willMutatePayload, loadGeneration coalescing, inspectedRowID split
++ Bottom toast feedback on successful actions (resize, etc.)
 
-=== Dependencies Detected ===
+=== Modified Areas (not new files) ===
+~ helmsman-api/internal/server/server.go — status + resize routes
+~ helmsman-api/internal/handler/actions.go — ResizePVC handler
+~ helmsman-api/internal/cluster/provider.go — Status struct
+~ helmsman-frontend/k67s/ViewModels/AppModel.swift — ConnectionPhase bootstrap
+~ helmsman-frontend/k67s/ViewModels/ResourceListModel.swift — load coalescing, willMutatePayload
+~ helmsman-frontend/k67s/ViewModels/ResourceActionsModel.swift — resize + actionToast
+~ helmsman-frontend/k67s/Views/ResourceListView.swift — selection/inspection split, onMutated reload
+~ helmsman-frontend/k67s/Models/ResourceCatalog.swift — supportsResize flag
+~ helmsman-frontend/k67s/Services/KubeAPIClient.swift — fetchStatus, resizePVC
+
+=== Dependencies ===
+No version changes detected since 2026-07-10.
 Go: k8s.io/client-go v0.32.3, swaggo
 Swift: Apple frameworks only (no SPM packages)
 Next: next 16.2.9, react 19.2.4, tailwindcss 4
-External: Supabase Storage (DMG), Homebrew tap, local kubectl
 
 === Staleness Warnings ===
-None — all codemaps freshly generated.
+None — all codemaps refreshed 2026-07-11.
 
-=== Diff vs Previous ===
-N/A (first run). Future scans will compute diff percentage before overwrite.
+=== Diff vs Previous (2026-07-10) ===
+Files scanned: 97 → 102 (+5)
+Routes documented: 25+ → 27+ (status, PVC resize)
+Frontend ViewModels: 7 → 8 (+ClusterOverviewModel)
+New UI surfaces: Cluster Overview, ResizePVC sheet, BottomToast

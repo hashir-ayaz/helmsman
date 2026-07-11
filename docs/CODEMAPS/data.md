@@ -1,4 +1,4 @@
-<!-- Generated: 2026-07-10 | Files scanned: 97 | Token estimate: ~400 -->
+<!-- Generated: 2026-07-11 | Files scanned: 102 | Token estimate: ~430 -->
 
 # Data Architecture
 
@@ -24,6 +24,14 @@ Helmsman has **no application database**. All persistent state lives in the user
 { "data": <T>, "error": "<string|null>" }
 ```
 
+### ClusterStatus (`GET /api/v1/status`)
+
+```
+{ ready: bool, code: string, message: string }
+```
+
+Codes include kubeconfig missing/unreadable and context resolution failures.
+
 ### TablePayload (list responses)
 
 ```
@@ -47,6 +55,13 @@ rows: [{ cells: [JSONValue], object: { name, namespace, apiVersion, kind } }]
 
 ```
 { revision, replicas, images[], createdAt }
+```
+
+### PVC resize request
+
+```
+POST .../persistentvolumeclaims/{name}/resize
+{ "storage": "10Gi" }
 ```
 
 ## Migrations
