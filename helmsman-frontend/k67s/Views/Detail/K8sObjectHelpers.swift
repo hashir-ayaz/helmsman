@@ -25,6 +25,59 @@ enum K8s {
         return timestamp
     }
 
+    /// Human-readable timestamp like "11-Jul-2026 at 8:50:04 PM".
+    /// Falls back to the raw string when parsing fails.
+    static func displayTimestamp(_ timestamp: String?) -> String? {
+        guard let timestamp, !timestamp.isEmpty else { return nil }
+        guard let date = iso8601.date(from: timestamp) else { return timestamp }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "dd-MMM-yyyy 'at' h:mm:ss a"
+        return formatter.string(from: date)
+    }
+
+    /// Event source as "component" or "component on host".
+    static func eventSourceLabel(_ object: JSONValue) -> String? {
+        let component = object["source"]?["component"]?.stringValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let host = object["source"]?["host"]?.stringValue?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        switch (component?.isEmpty == false ? component : nil,
+                host?.isEmpty == false ? host : nil) {
+        case let (c?, h?): return "\(c) on \(h)"
+        case let (c?, nil): return c
+        case let (nil, h?): return h
+        default: return nil
+        }
+    }
+
+    /// Best-effort First Seen for an Event object.
+    static func eventFirstSeen(_ object: JSONValue) -> String? {
+        displayTimestamp(
+            nonEmpty(object["firstTimestamp"]?.stringValue)
+                ?? nonEmpty(object["eventTime"]?.stringValue)
+                ?? nonEmpty(object["metadata"]?["creationTimestamp"]?.stringValue)
+        )
+    }
+
+    /// Best-effort Last Seen for an Event object.
+    static func eventLastSeen(_ object: JSONValue) -> String? {
+        displayTimestamp(
+            nonEmpty(object["lastTimestamp"]?.stringValue)
+                ?? nonEmpty(object["series"]?["lastObservedTime"]?.stringValue)
+                ?? nonEmpty(object["eventTime"]?.stringValue)
+                ?? nonEmpty(object["firstTimestamp"]?.stringValue)
+                ?? nonEmpty(object["metadata"]?["creationTimestamp"]?.stringValue)
+        )
+    }
+
+    private static func nonEmpty(_ value: String?) -> String? {
+        guard let value, !value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            return nil
+        }
+        return value
+    }
+
     /// Controlling owner as "Kind/name", preferring the controller=true ref.
     static func controlledBy(_ object: JSONValue) -> String? {
         guard let refs = object["metadata"]?["ownerReferences"]?.arrayValue,

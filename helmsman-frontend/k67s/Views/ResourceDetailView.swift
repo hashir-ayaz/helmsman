@@ -21,6 +21,16 @@ struct ResourceDetailView: View {
         resource.scope == .cluster ? nil : row.object.namespace
     }
 
+    /// Status string for the header dot: Event type, else pod/object phase.
+    private var headerStatus: String? {
+        if model.object?["kind"]?.stringValue == "Event",
+           let type = model.object?["type"]?.stringValue,
+           !type.isEmpty {
+            return type.lowercased() == "warning" ? "Failed" : "Running"
+        }
+        return model.object?["status"]?["phase"]?.stringValue
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             header
@@ -63,8 +73,8 @@ struct ResourceDetailView: View {
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(spacing: 8) {
-                if let phase = model.object?["status"]?["phase"]?.stringValue {
-                    StatusDot(status: phase)
+                if let status = headerStatus {
+                    StatusDot(status: status)
                 }
                 Text(row.object.name)
                     .font(.headline)
