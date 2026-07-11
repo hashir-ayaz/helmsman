@@ -30,8 +30,7 @@ struct ResourceListView: View {
 
     var body: some View {
         HSplitView {
-            table
-                .overlay { overlay }
+            listPane
             if let row = inspectedRow {
                 ResourceDetailView(app: app, resource: resource, row: row)
                     .id(row.id)
@@ -44,7 +43,6 @@ struct ResourceListView: View {
         .rowActionAlerts(actions)
         .task(id: taskKey) {
             actions.resource = resource
-            model.reset()
             model.willMutatePayload = { selectedRowID = nil }
             actions.onMutated = { mutatedRowID in
                 selectedRowID = nil
@@ -56,8 +54,35 @@ struct ResourceListView: View {
             }
             selectedRowID = nil
             inspectedRowID = nil
+            // Namespace/context change: clear payload without mounting an empty
+            // TableColumnForEach (that AttributeGraph path crashes).
+            if model.payload != nil {
+                model.reset()
+            }
             await reloadAndSyncSelection()
             await model.watch(ctx: app.selectedContext, ns: app.namespaceParam, resource: resource)
+        }
+    }
+
+    /// Prefer skeleton/error over a Table with zero columns — SwiftUI's
+    /// TableColumnForEach aborts when columns go empty↔N during diffs.
+    @ViewBuilder
+    private var listPane: some View {
+        if model.payload == nil {
+            if let error = model.error {
+                ErrorStateView(error: error) {
+                    Task { await reloadAndSyncSelection() }
+                }
+            } else {
+                ResourceListSkeleton(columnCount: 4)
+            }
+        } else {
+            table
+                .overlay {
+                    if model.payload?.rows.isEmpty == true {
+                        ContentUnavailableView("No \(resource.title)", systemImage: resource.symbol)
+                    }
+                }
         }
     }
 
@@ -76,7 +101,6 @@ struct ResourceListView: View {
         // Stable identity per resource/namespace/context so SwiftUI rebuilds the
         // table when the column set changes rather than mutating it mid-layout.
         .id(taskKey)
-        .contentAppear()
         .onChange(of: model.visibleColumns.map(\.id)) { _, _ in
             // Column structure changed — NSTableView cannot keep a valid selection index.
             selectedRowID = nil
@@ -310,19 +334,6 @@ struct ResourceListView: View {
             return nil
         }
         return row.cells[safe: index]?.displayString
-    }
-
-    @ViewBuilder
-    private var overlay: some View {
-        if model.isLoading && model.payload == nil {
-            ResourceListSkeleton(columnCount: 4)
-        } else if let error = model.error {
-            ErrorStateView(error: error) {
-                Task { await reloadAndSyncSelection() }
-            }
-        } else if model.payload?.rows.isEmpty == true {
-            ContentUnavailableView("No \(resource.title)", systemImage: resource.symbol)
-        }
     }
 
     @ToolbarContentBuilder

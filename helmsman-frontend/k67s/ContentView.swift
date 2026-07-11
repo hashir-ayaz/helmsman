@@ -31,8 +31,12 @@ struct ContentView: View {
             switch app.selectedDestination {
             case .overview:
                 ClusterOverviewView(app: app)
+                    .id("overview")
             case .resource(let resource):
+                // Remount per resource so @State (payload/columns) never carries
+                // across list switches — TableColumnForEach crashes on empty↔N column diffs.
                 ResourceListView(app: app, resource: resource)
+                    .id(resource.id)
             }
         }
         .transition(.opacity.combined(with: .scale(scale: 0.98)))
