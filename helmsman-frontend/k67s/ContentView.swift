@@ -2,19 +2,23 @@ import SwiftUI
 
 struct ContentView: View {
     @State private var app = AppModel()
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     var body: some View {
         Group {
             switch app.connectionPhase {
             case .connecting:
-                connectingView
-            case .failed(let title, let message, _):
-                failedView(title: title, message: message)
+                BootstrapGateView(phase: .connecting(step: app.bootstrapStep))
+            case .failed(let title, let message, let code):
+                BootstrapGateView(phase: .failed(title: title, message: message, code: code)) {
+                    Task { await app.retryConnection() }
+                }
             case .ready:
                 mainView
             }
         }
         .frame(minWidth: 900, minHeight: 560)
+        .animation(reduceMotion ? nil : HelmsmanMotion.gate, value: app.connectionPhase)
         .task {
             await app.bootstrap()
         }
@@ -31,45 +35,7 @@ struct ContentView: View {
                 ResourceListView(app: app, resource: resource)
             }
         }
-    }
-
-    private var connectingView: some View {
-        ContentUnavailableView {
-            ProgressView()
-                .controlSize(.large)
-        } description: {
-            Text("Connecting to your cluster")
-                .font(.title3)
-        } actions: {
-            Text("Starting the Helmsman backend and loading your kubeconfig.")
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 360)
-        }
-    }
-
-    private func failedView(title: String, message: String) -> some View {
-        ContentUnavailableView {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 44))
-                .foregroundStyle(.secondary)
-        } description: {
-            VStack(spacing: 8) {
-                Text(title)
-                    .font(.title3)
-                Text(message)
-                    .font(.body)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 420)
-            }
-        } actions: {
-            Button("Retry") {
-                Task { await app.retryConnection() }
-            }
-            .keyboardShortcut(.defaultAction)
-        }
+        .transition(.opacity.combined(with: .scale(scale: 0.98)))
     }
 }
 

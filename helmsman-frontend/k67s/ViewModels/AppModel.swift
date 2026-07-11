@@ -18,7 +18,15 @@ final class AppModel {
         case failed(title: String, message: String, code: String?)
     }
 
+    enum BootstrapStep: Equatable {
+        case checkingNetwork
+        case startingBackend
+        case checkingCluster
+        case loadingContexts
+    }
+
     var connectionPhase: ConnectionPhase = .connecting
+    var bootstrapStep: BootstrapStep = .startingBackend
     var contexts: [ContextInfo] = []
     var selectedContext = "_current"
     var namespaces: [String] = []
@@ -53,9 +61,22 @@ final class AppModel {
 
     func bootstrap() async {
         connectionPhase = .connecting
+        bootstrapStep = .checkingNetwork
+
+        guard await NetworkConnectivity.hasUsableNetwork() else {
+            connectionPhase = .failed(
+                title: "You're Offline 📶",
+                message: "Helmsman needs a network connection to reach your cluster. Check your Wi‑Fi or Ethernet, then try again.",
+                code: "no_network"
+            )
+            return
+        }
+
+        bootstrapStep = .startingBackend
 
         guard await waitForBackend() else { return }
 
+        bootstrapStep = .checkingCluster
         do {
             let status = try await KubeAPIClient.shared.fetchStatus()
             if !status.ready {
@@ -77,6 +98,7 @@ final class AppModel {
             return
         }
 
+        bootstrapStep = .loadingContexts
         guard await loadContexts() else { return }
         await loadNamespaces()
         connectionPhase = .ready
@@ -170,6 +192,7 @@ final class AppModel {
 
     private static func title(for code: String) -> String {
         switch code {
+        case "no_network": "You're Offline 📶"
         case "kubeconfig_not_found": "Kubeconfig Not Found"
         case "kubeconfig_invalid": "Invalid Kubeconfig"
         case "no_contexts": "No Contexts Configured"

@@ -44,6 +44,7 @@ struct ResourceListView: View {
         .rowActionAlerts(actions)
         .task(id: taskKey) {
             actions.resource = resource
+            model.reset()
             model.willMutatePayload = { selectedRowID = nil }
             actions.onMutated = { mutatedRowID in
                 selectedRowID = nil
@@ -75,6 +76,7 @@ struct ResourceListView: View {
         // Stable identity per resource/namespace/context so SwiftUI rebuilds the
         // table when the column set changes rather than mutating it mid-layout.
         .id(taskKey)
+        .contentAppear()
         .onChange(of: model.visibleColumns.map(\.id)) { _, _ in
             // Column structure changed — NSTableView cannot keep a valid selection index.
             selectedRowID = nil
@@ -313,7 +315,7 @@ struct ResourceListView: View {
     @ViewBuilder
     private var overlay: some View {
         if model.isLoading && model.payload == nil {
-            ProgressView()
+            ResourceListSkeleton(columnCount: 4)
         } else if let error = model.error {
             ErrorStateView(error: error) {
                 Task { await reloadAndSyncSelection() }

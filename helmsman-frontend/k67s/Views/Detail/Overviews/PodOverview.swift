@@ -96,7 +96,7 @@ struct PodOverview: View {
     private var eventsSection: some View {
         DetailSection(title: "Events") {
             if isLoadingEvents {
-                ProgressView().controlSize(.small)
+                PodEventsSkeleton()
             } else if events.isEmpty {
                 Text("No events")
                     .font(.callout)

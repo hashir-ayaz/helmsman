@@ -29,6 +29,6 @@ extension View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .animation(.spring(duration: 0.35), value: message.wrappedValue)
+        .animation(.spring(duration: 0.28), value: message.wrappedValue)
     }
 }

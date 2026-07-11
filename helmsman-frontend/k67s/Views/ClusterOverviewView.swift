@@ -17,15 +17,17 @@ struct ClusterOverviewView: View {
             }
             .padding(16)
         }
+        .contentAppear()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .navigationTitle("Cluster Overview")
         .toolbar { toolbarContent }
         .overlay {
             if model.isLoading && model.summaryCards.isEmpty {
-                ProgressView()
+                ClusterOverviewSkeleton()
             }
         }
         .task(id: taskKey) {
+            model.reset()
             await model.load(ctx: app.selectedContext)
         }
     }
@@ -204,6 +206,7 @@ private struct SummaryCardView: View {
             if let count = card.count {
                 Text("\(count)")
                     .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .contentTransition(.numericText())
             } else {
                 Text("—")
                     .font(.system(size: 28, weight: .semibold, design: .rounded))

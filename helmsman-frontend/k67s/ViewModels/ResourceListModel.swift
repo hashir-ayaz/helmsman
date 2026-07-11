@@ -25,6 +25,14 @@ final class ResourceListModel {
         reloadWork = nil
     }
 
+    /// Clears fetched data so page switches show a skeleton instead of stale rows.
+    func reset() {
+        cancelPendingReload()
+        payload = nil
+        error = nil
+        isLoading = false
+    }
+
     var columns: [TablePayload.Column] {
         payload?.columns ?? []
     }

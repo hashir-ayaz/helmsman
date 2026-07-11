@@ -68,6 +68,17 @@ final class ClusterOverviewModel {
 
     private static let maxWarnings = 20
 
+    /// Clears dashboard data so context switches show skeleton placeholders.
+    func reset() {
+        summaryCards = []
+        workloadBars = []
+        warningEvents = []
+        nodes = []
+        warningsError = nil
+        nodesError = nil
+        isLoading = false
+    }
+
     func load(ctx: String) async {
         isLoading = true
         defer { isLoading = false }

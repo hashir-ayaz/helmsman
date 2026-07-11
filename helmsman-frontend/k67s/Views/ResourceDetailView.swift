@@ -94,7 +94,7 @@ struct ResourceDetailView: View {
         ScrollView {
             Group {
                 if model.isLoadingObject {
-                    ProgressView()
+                    DetailOverviewSkeleton()
                 } else if let object = model.object {
                     ResourceOverview(
                         object: object,
@@ -106,11 +106,12 @@ struct ResourceDetailView: View {
                         .font(.callout)
                         .foregroundStyle(.secondary)
                 } else {
-                    ProgressView()
+                    DetailOverviewSkeleton()
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(12)
+            .contentAppear()
         }
     }
 
@@ -120,8 +121,14 @@ struct ResourceDetailView: View {
                 JSONTreeView(key: nil, value: object)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
+                    .contentAppear()
+            } else if model.isLoadingObject {
+                DetailObjectSkeleton()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
             } else {
-                ProgressView().padding()
+                DetailObjectSkeleton()
+                    .padding(12)
             }
         }
     }
@@ -129,13 +136,16 @@ struct ResourceDetailView: View {
     private var yamlTab: some View {
         ScrollView([.vertical, .horizontal]) {
             if model.isLoadingYAML {
-                ProgressView().padding()
+                DetailYAMLSkeleton()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(12)
             } else if let yaml = model.yaml {
                 Text(yaml)
                     .font(.system(.caption, design: .monospaced))
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
+                    .contentAppear()
             } else if let error = model.error {
                 Text(error.errorDescription ?? "Error")
                     .foregroundStyle(.secondary)
