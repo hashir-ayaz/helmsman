@@ -4,53 +4,33 @@ struct SidebarView: View {
     @Bindable var app: AppModel
 
     var body: some View {
-        VStack(spacing: 0) {
-            pickers
-            Divider()
-            List(selection: $app.selectedDestination) {
-                Section("General") {
-                    Label("Overview", systemImage: "square.grid.2x2")
-                        .tag(SidebarDestination.overview)
-                }
+        List(selection: $app.selectedDestination) {
+            Section("General") {
+                Label("Overview", systemImage: "square.grid.2x2")
+                    .tag(SidebarDestination.overview)
+            }
 
-                ForEach(ResourceSection.allCases, id: \.self) { section in
-                    let items = ResourceType.all.filter { $0.section == section }
-                    if !items.isEmpty {
-                        Section(section.rawValue) {
-                            ForEach(items) { resource in
+            ForEach(ResourceSection.allCases, id: \.self) { section in
+                let items = ResourceType.all.filter { $0.section == section }
+                if !items.isEmpty {
+                    Section(section.rawValue) {
+                        ForEach(items) { resource in
+                            HStack {
                                 Label(resource.title, systemImage: resource.symbol)
-                                    .tag(SidebarDestination.resource(resource))
+                                Spacer(minLength: 8)
+                                if let count = app.sidebarCounts.counts[resource.resource] {
+                                    Text("\(count)")
+                                        .font(.caption.monospacedDigit())
+                                        .foregroundStyle(.secondary)
+                                }
                             }
+                            .tag(SidebarDestination.resource(resource))
                         }
                     }
                 }
             }
-            .listStyle(.sidebar)
         }
+        .listStyle(.sidebar)
         .frame(minWidth: 215)
-        .onChange(of: app.selectedContext) { _, _ in
-            Task { await app.contextDidChange() }
-        }
-    }
-
-    private var pickers: some View {
-        VStack(spacing: 6) {
-            Picker("Context", selection: $app.selectedContext) {
-                Text("Current Context").tag("_current")
-                ForEach(app.contexts) { context in
-                    Text(context.name).tag(context.name)
-                }
-            }
-            .labelsHidden()
-
-            Picker("Namespace", selection: $app.selectedNamespace) {
-                ForEach(app.namespacePickerOptions, id: \.self) { namespace in
-                    Text(namespace).tag(namespace)
-                }
-            }
-            .labelsHidden()
-        }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 10)
     }
 }
