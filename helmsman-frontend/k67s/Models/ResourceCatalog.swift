@@ -87,6 +87,9 @@ struct ResourceType: Identifiable, Hashable, Sendable {
         }
     }
 
+    /// True for Pods and Services — port-forward via the API sidecar.
+    var supportsPortForward: Bool { resource == "pods" || resource == "services" }
+
     /// True for controller workloads that select pods via `spec.selector.matchLabels`.
     var supportsRelatedPods: Bool { scaleWorkload != nil || restartWorkload != nil }
 

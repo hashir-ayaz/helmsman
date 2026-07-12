@@ -41,6 +41,7 @@ func (e *NotReadyError) Error() string {
 
 // ClientBundle holds every client a handler needs for one cluster context.
 type ClientBundle struct {
+	Config    *rest.Config
 	Typed     kubernetes.Interface
 	Dynamic   dynamic.Interface
 	Discovery discovery.DiscoveryInterface
@@ -208,7 +209,7 @@ func (p *kubeProvider) build(contextName string) (*ClientBundle, error) {
 	}
 	disco := memory.NewMemCacheClient(typed.Discovery())
 	mapper := restmapper.NewDeferredDiscoveryRESTMapper(disco)
-	return &ClientBundle{Typed: typed, Dynamic: dyn, Discovery: disco, Mapper: mapper}, nil
+	return &ClientBundle{Config: restCfg, Typed: typed, Dynamic: dyn, Discovery: disco, Mapper: mapper}, nil
 }
 
 func (p *kubeProvider) restConfig(contextName string) (*rest.Config, error) {

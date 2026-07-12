@@ -32,6 +32,9 @@ struct ContentView: View {
             case .overview:
                 ClusterOverviewView(app: app)
                     .id("overview")
+            case .portForwards:
+                PortForwardsView(app: app, model: app.portForwards)
+                    .id("portforwards")
             case .resource(let resource):
                 // Remount per resource so @State (payload/columns) never carries
                 // across list switches — TableColumnForEach crashes on empty↔N column diffs.

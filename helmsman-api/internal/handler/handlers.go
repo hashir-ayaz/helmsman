@@ -16,25 +16,28 @@ const currentSentinel = "_current"
 
 // Handlers is the full handler set shared by the server.
 type Handlers struct {
-	Resources *ResourceHandler
-	Actions   *ActionHandler
-	Logs      *LogHandler
-	Contexts  *ContextHandler
-	Status    *StatusHandler
-	Watch     *WatchHandler
-	Rollout   *RolloutHandler
+	Resources   *ResourceHandler
+	Actions     *ActionHandler
+	Logs        *LogHandler
+	Contexts    *ContextHandler
+	Status      *StatusHandler
+	Watch       *WatchHandler
+	Rollout     *RolloutHandler
+	PortForward *PortForwardHandler
 }
 
 // New builds the handler set from a cluster provider.
 func New(p cluster.Provider) Handlers {
+	mgr := k8s.DefaultPortForwardManager()
 	return Handlers{
-		Resources: &ResourceHandler{provider: p},
-		Actions:   &ActionHandler{provider: p},
-		Logs:      &LogHandler{provider: p},
-		Contexts:  &ContextHandler{provider: p},
-		Status:    &StatusHandler{provider: p},
-		Watch:     &WatchHandler{provider: p},
-		Rollout:   &RolloutHandler{provider: p},
+		Resources:   &ResourceHandler{provider: p},
+		Actions:     &ActionHandler{provider: p},
+		Logs:        &LogHandler{provider: p},
+		Contexts:    &ContextHandler{provider: p},
+		Status:      &StatusHandler{provider: p},
+		Watch:       &WatchHandler{provider: p},
+		Rollout:     &RolloutHandler{provider: p},
+		PortForward: &PortForwardHandler{provider: p, manager: mgr},
 	}
 }
 

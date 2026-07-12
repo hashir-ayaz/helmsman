@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Carries all context needed to open the Rollout History sheet.
 struct RolloutHistoryTarget: Identifiable {
@@ -26,6 +27,9 @@ final class ResourceActionsModel {
     var cancelTarget: TablePayload.Row?
     var drainTarget: TablePayload.Row?
     var resizeTarget: ResizePVCTarget?
+    var portForwardTarget: PortForwardTarget?
+    var portForwardLocalPortText = ""
+    var portForwardOpenInBrowser = true
     var replicasText = ""
     var resizeValueText = ""
     var resizeUnit: PVCResizeUnit = .gi
@@ -37,6 +41,7 @@ final class ResourceActionsModel {
     var resource: ResourceType?
 
     var onMutated: (TablePayload.Row.ID?) -> Void = { _ in }
+    var onPortForwardStarted: (PortForwardSession) -> Void = { _ in }
 
     private var toastDismissTask: Task<Void, Never>?
 
@@ -59,6 +64,45 @@ final class ResourceActionsModel {
         resizeValueText = target.initialValue
         resizeUnit = PVCResizeUnit(rawValue: target.initialUnit) ?? .gi
         resizeTarget = target
+    }
+
+    func beginPortForward(_ target: PortForwardTarget) {
+        portForwardLocalPortText = target.suggestedLocalPort
+        portForwardOpenInBrowser = true
+        portForwardTarget = target
+    }
+
+    func performPortForward(_ target: PortForwardTarget?) async {
+        guard let target else { return }
+        let trimmed = portForwardLocalPortText.trimmingCharacters(in: .whitespaces)
+        let localPort = trimmed.isEmpty ? 0 : (Int(trimmed) ?? 0)
+        let openBrowser = portForwardOpenInBrowser
+        isBusy = true
+        actionError = nil
+        defer { isBusy = false }
+        do {
+            let session = try await KubeAPIClient.shared.startPortForward(
+                ctx: target.ctx,
+                ns: target.row.object.namespace ?? "",
+                resource: target.resource.resource,
+                name: target.row.object.name,
+                localPort: localPort,
+                remotePort: target.portOption.port,
+                container: target.portOption.containerName
+            )
+            portForwardTarget = nil
+            onPortForwardStarted(session)
+            if openBrowser {
+                if let url = session.browserURL {
+                    NSWorkspace.shared.open(url)
+                }
+            }
+            showActionToast("Forwarding localhost:\(session.localPort) → :\(session.remotePort)")
+        } catch let apiError as APIError {
+            actionError = apiError
+        } catch {
+            actionError = .transport(error.localizedDescription)
+        }
     }
 
     func performResize(_ target: ResizePVCTarget?) async {

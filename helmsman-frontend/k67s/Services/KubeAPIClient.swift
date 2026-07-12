@@ -234,6 +234,57 @@ actor KubeAPIClient {
         )
     }
 
+    // MARK: - Port forward
+
+    func startPortForward(
+        ctx: String = "_current",
+        ns: String,
+        resource: String,
+        name: String,
+        localPort: Int,
+        remotePort: Int,
+        container: String? = nil
+    ) async throws -> PortForwardSession {
+        var body: [String: Any] = [
+            "localPort": localPort,
+            "remotePort": remotePort,
+        ]
+        if let container, !container.isEmpty {
+            body["container"] = container
+        }
+        let payload = try JSONSerialization.data(withJSONObject: body)
+        let kindPath: String
+        switch resource {
+        case "pods": kindPath = "pods"
+        case "services": kindPath = "services"
+        default: kindPath = resource
+        }
+        return try await sendEnveloped(
+            method: "POST",
+            path: "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/\(kindPath)/\(enc(name))/portforward",
+            contentType: "application/json",
+            body: payload
+        )
+    }
+
+    func listPortForwards(ctx: String = "_current") async throws -> [PortForwardSession] {
+        try await getEnveloped("/api/v1/contexts/\(enc(ctx))/portforwards")
+    }
+
+    func stopPortForward(ctx: String = "_current", id: String) async throws -> PortForwardSession {
+        try await sendEnveloped(
+            method: "POST",
+            path: "/api/v1/contexts/\(enc(ctx))/portforwards/\(enc(id))/stop"
+        )
+    }
+
+    func removePortForward(ctx: String = "_current", id: String) async throws {
+        let _: JSONValue = try await sendEnveloped(
+            method: "DELETE",
+            path: "/api/v1/contexts/\(enc(ctx))/portforwards/\(enc(id))"
+        )
+    }
+
     // MARK: - Log streaming (SSE)
 
     /// Streams a pod's logs as individual lines. Long-lived and `nonisolated` so

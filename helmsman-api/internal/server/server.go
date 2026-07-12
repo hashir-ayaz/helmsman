@@ -13,6 +13,7 @@ import (
 	httpSwagger "github.com/swaggo/http-swagger"
 
 	"github.com/hashir-ayaz/helmsman/helmsman-api/internal/handler"
+	"github.com/hashir-ayaz/helmsman/helmsman-api/internal/k8s"
 )
 
 type Server struct {
@@ -69,6 +70,13 @@ func New(port string, h handler.Handlers) *Server {
 	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/pause", h.Rollout.Pause)
 	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/rollout/resume", h.Rollout.Resume)
 
+	// Port-forward sessions.
+	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/pods/{name}/portforward", h.PortForward.StartPod)
+	mux.HandleFunc("POST /api/v1/contexts/{ctx}/namespaces/{ns}/services/{name}/portforward", h.PortForward.StartService)
+	mux.HandleFunc("GET /api/v1/contexts/{ctx}/portforwards", h.PortForward.List)
+	mux.HandleFunc("POST /api/v1/contexts/{ctx}/portforwards/{id}/stop", h.PortForward.Stop)
+	mux.HandleFunc("DELETE /api/v1/contexts/{ctx}/portforwards/{id}", h.PortForward.Remove)
+
 	return &Server{
 		http: &http.Server{
 			Addr:              fmt.Sprintf(":%s", port),
@@ -92,6 +100,7 @@ func (s *Server) Start() error {
 
 	<-quit
 	log.Println("shutting down...")
+	k8s.DefaultPortForwardManager().StopAll()
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

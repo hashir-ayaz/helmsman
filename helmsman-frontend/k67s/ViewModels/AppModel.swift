@@ -3,6 +3,7 @@ import SwiftUI
 /// Sidebar navigation — Overview is a custom dashboard; resources use the generic list.
 enum SidebarDestination: Hashable {
     case overview
+    case portForwards
     case resource(ResourceType)
 }
 
@@ -43,6 +44,8 @@ final class AppModel {
 
     /// Active label filter when navigated from a workload via "Show Pods".
     var podsListFilter: PodsListFilter?
+
+    let portForwards = PortForwardsModel()
 
     var selectedResource: ResourceType? {
         if case .resource(let resource) = selectedDestination { return resource }

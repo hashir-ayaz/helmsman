@@ -16,6 +16,8 @@ struct ResourceListView: View {
     @State private var inspectedRowID: TablePayload.Row.ID?
     /// What the detail pane displays — may differ from the list when drilled into a related pod.
     @State private var detailFocus: DetailFocus?
+    @State private var portForwardOptions: [String: [PortForwardPortOption]] = [:]
+    @State private var portForwardLoadingIDs: Set<String> = []
 
     private var isPods: Bool { resource.isPods }
     private var isEvents: Bool { resource.resource == "events" }
@@ -75,6 +77,12 @@ struct ResourceListView: View {
                 }
                 model.cancelPendingReload()
                 Task { await reloadAndSyncSelection() }
+            }
+            actions.onPortForwardStarted = { _ in
+                Task {
+                    await app.portForwards.refresh(ctx: app.selectedContext)
+                    app.selectedDestination = .portForwards
+                }
             }
             selectedRowID = nil
             inspectedRowID = nil
@@ -180,6 +188,31 @@ struct ResourceListView: View {
 
             if isPods {
                 Button("Shell") { openShell(row: row) }
+            }
+
+            if resource.supportsPortForward, hasNamespace {
+                Menu("Port Forward") {
+                    let options = portForwardOptions[row.id] ?? []
+                    if portForwardLoadingIDs.contains(row.id), options.isEmpty {
+                        Button("Loading…") {}.disabled(true)
+                    } else if options.isEmpty {
+                        Button("No ports") {}.disabled(true)
+                    } else {
+                        ForEach(options) { option in
+                            Button(option.label) {
+                                actions.beginPortForward(PortForwardTarget(
+                                    row: row,
+                                    ctx: app.selectedContext,
+                                    resource: resource,
+                                    portOption: option
+                                ))
+                            }
+                        }
+                    }
+                }
+                .onAppear {
+                    Task { await loadPortForwardOptions(for: row) }
+                }
             }
 
             if canEditSingleObject {
@@ -352,6 +385,30 @@ struct ResourceListView: View {
             namespace: row.object.namespace ?? "",
             pod: row.object.name
         ))
+    }
+
+    private func loadPortForwardOptions(for row: TablePayload.Row) async {
+        let rowID = row.id
+        guard portForwardOptions[rowID] == nil else { return }
+        portForwardLoadingIDs.insert(rowID)
+        defer { portForwardLoadingIDs.remove(rowID) }
+        do {
+            let object = try await KubeAPIClient.shared.getObject(
+                ctx: app.selectedContext,
+                ns: row.object.namespace,
+                resource: resource.resource,
+                name: row.object.name
+            )
+            let options: [PortForwardPortOption]
+            if resource.resource == "pods" {
+                options = PortForwardPortParser.podPorts(from: object)
+            } else {
+                options = PortForwardPortParser.servicePorts(from: object)
+            }
+            portForwardOptions[rowID] = options
+        } catch {
+            portForwardOptions[rowID] = []
+        }
     }
 
     /// Best-effort current replica count for the scale modal, parsed from a

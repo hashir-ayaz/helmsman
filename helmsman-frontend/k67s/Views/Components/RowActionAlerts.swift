@@ -109,6 +109,11 @@ struct RowActionAlerts: ViewModifier {
                 DeleteOptionsSheet(actions: actions, row: row)
             }
 
+            // Port Forward sheet
+            .sheet(item: $actions.portForwardTarget) { target in
+                PortForwardSheet(actions: actions, target: target)
+            }
+
             // Generic error alert (last, catches all action errors)
             .alert(
                 "Action Failed",
