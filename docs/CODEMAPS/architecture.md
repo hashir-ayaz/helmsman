@@ -73,5 +73,4 @@ Shell → ShellSessionModel → local kubectl exec (no API)
 
 - API-backed exec/shell (frontend uses local `kubectl exec` today)
 - Port-forward (bidirectional streaming)
-- Rollout history for StatefulSets/DaemonSets (needs ControllerRevisions)
 - Resource event stream in detail panel

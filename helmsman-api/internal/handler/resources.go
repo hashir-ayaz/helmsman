@@ -114,6 +114,8 @@ func (h *ResourceHandler) YAML(w http.ResponseWriter, r *http.Request) {
 //	@Summary	Delete one resource
 //	@Tags		resources
 //	@Produce	json
+//	@Param		gracePeriodSeconds	query	int		false	"Grace period in seconds (0 = immediate)"
+//	@Param		propagationPolicy	query	string	false	"Cascade policy: Foreground, Background, or Orphan"
 //	@Router		/api/v1/contexts/{ctx}/resources/{resource}/{name} [delete]
 //	@Router		/api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/{name} [delete]
 func (h *ResourceHandler) Delete(w http.ResponseWriter, r *http.Request) {

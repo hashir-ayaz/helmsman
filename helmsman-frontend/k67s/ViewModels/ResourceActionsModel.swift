@@ -18,6 +18,9 @@ final class ResourceActionsModel {
     var restartTarget: TablePayload.Row?
     var deleteTarget: TablePayload.Row?
     var forceDeleteTarget: TablePayload.Row?
+    var deleteOptionsTarget: TablePayload.Row?
+    var deletePropagationPolicy: DeletePropagationPolicy = .background
+    var deleteImmediate = false
     var triggerTarget: TablePayload.Row?
     var rolloutHistoryTarget: RolloutHistoryTarget?
     var cancelTarget: TablePayload.Row?
@@ -128,6 +131,33 @@ final class ResourceActionsModel {
         forceDeleteTarget = nil
         if actionError == nil {
             showActionToast("Force deleted \(row.object.name)")
+        }
+    }
+
+    func beginDeleteWithOptions(_ row: TablePayload.Row) {
+        deletePropagationPolicy = .background
+        deleteImmediate = false
+        deleteOptionsTarget = row
+    }
+
+    func performDeleteWithOptions(_ row: TablePayload.Row?) async {
+        guard let row, let resource else { return }
+        let rowID = row.id
+        let policy = deletePropagationPolicy.rawValue
+        let grace = deleteImmediate ? 0 : nil
+        await run(mutatedRowID: rowID) {
+            try await KubeAPIClient.shared.delete(
+                ns: row.object.namespace ?? "",
+                resource: resource.resource,
+                name: row.object.name,
+                gracePeriodSeconds: grace,
+                propagationPolicy: policy
+            )
+        }
+        deleteOptionsTarget = nil
+        if actionError == nil {
+            let policyLabel = deletePropagationPolicy.rawValue.lowercased()
+            showActionToast("Deleted \(row.object.name) (\(policyLabel) cascade)")
         }
     }
 

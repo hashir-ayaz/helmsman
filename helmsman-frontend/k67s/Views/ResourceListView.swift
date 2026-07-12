@@ -261,6 +261,11 @@ struct ResourceListView: View {
                 }
                 if canEditSingleObject {
                     Button("Delete", role: .destructive) { actions.deleteTarget = row }
+                    if resource.supportsCascadeDelete {
+                        Button("Delete with Options…", role: .destructive) {
+                            actions.beginDeleteWithOptions(row)
+                        }
+                    }
                     Button("Force Delete…", role: .destructive) { actions.forceDeleteTarget = row }
                 }
             }

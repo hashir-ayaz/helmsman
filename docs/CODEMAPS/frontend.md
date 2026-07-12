@@ -78,7 +78,9 @@ Sheets/Windows: RolloutHistorySheet, ResizePVCSheet, LogWindowView, YAMLEditorWi
 
 `Models/ResourceCatalog.swift` — single source of truth for sidebar (20+ types across 5 sections).
 
-Capability flags drive context menu: `scaleWorkload`, `restartWorkload`, `supportsPause`, `supportsSuspend`, `supportsCancel`, `supportsDrain`, `supportsResize`, `isPods`.
+Capability flags drive context menu: `scaleWorkload`, `restartWorkload`, `supportsPause`, `supportsSuspend`, `supportsCancel`, `supportsDrain`, `supportsResize`, `supportsCascadeDelete`, `isPods`.
+
+Sheets: `RolloutHistorySheet`, `ResizePVCSheet`, `DeleteOptionsSheet` (cascade delete for controllers).
 
 ## Key Patterns
 

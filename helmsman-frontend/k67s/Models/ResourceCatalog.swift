@@ -76,6 +76,17 @@ struct ResourceType: Identifiable, Hashable, Sendable {
     /// True for PVCs — resize increases spec.resources.requests.storage.
     var supportsResize: Bool { resource == "persistentvolumeclaims" }
 
+    /// True for controller workloads that support cascade delete options.
+    var supportsCascadeDelete: Bool {
+        switch resource {
+        case "deployments.apps", "statefulsets.apps", "daemonsets.apps",
+             "replicasets.apps", "jobs.batch", "cronjobs.batch":
+            true
+        default:
+            false
+        }
+    }
+
     /// True for controller workloads that select pods via `spec.selector.matchLabels`.
     var supportsRelatedPods: Bool { scaleWorkload != nil || restartWorkload != nil }
 

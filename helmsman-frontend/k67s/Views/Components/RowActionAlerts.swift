@@ -104,6 +104,11 @@ struct RowActionAlerts: ViewModifier {
                 ResizePVCSheet(actions: actions, target: target)
             }
 
+            // Delete with cascade options sheet
+            .sheet(item: $actions.deleteOptionsTarget) { row in
+                DeleteOptionsSheet(actions: actions, row: row)
+            }
+
             // Generic error alert (last, catches all action errors)
             .alert(
                 "Action Failed",

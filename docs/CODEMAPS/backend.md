@@ -24,7 +24,7 @@ main.go → config.Load() → cluster.NewProvider(KUBECONFIG)
 | `internal/k8s/resources.go` | List (Table), Get, YAML, Delete, Patch, Apply |
 | `internal/k8s/actions.go` | Scale, Restart, SetSuspend, CancelJob |
 | `internal/k8s/pvc.go` | ResizePVC merge patch; rejects storage shrink |
-| `internal/k8s/rollout.go` | History, Undo, Pause, Resume (Deployment RS inspection) |
+| `internal/k8s/rollout.go` | History, Undo, Pause, Resume (Deployments via ReplicaSets; STS/DS via ControllerRevisions) |
 | `internal/k8s/drain.go` | Cordon + evict (skip DaemonSet/mirror pods) |
 | `internal/k8s/watch.go` | Goroutine watch channel, reconnect, 410 Gone handling |
 | `internal/k8s/logs.go` | Pod log stream (`io.ReadCloser`) |
@@ -53,7 +53,7 @@ GET  /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}
 GET  /api/v1/contexts/{ctx}/[namespaces/{ns}/]resources/{resource}/{name}
      → ResourceHandler.Get → k8s.Get
 GET  .../yaml → ResourceHandler.YAML → k8s.YAML
-DELETE ...    → ResourceHandler.Delete → k8s.Delete
+DELETE ...    → ResourceHandler.Delete → k8s.Delete (optional gracePeriodSeconds, propagationPolicy)
 PATCH ...     → ResourceHandler.Patch → k8s.Patch
 
 POST /api/v1/contexts/{ctx}/namespaces/{ns}/{workload}/{name}/scale

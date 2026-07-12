@@ -199,7 +199,6 @@ Views/
 
 - `exec` / shell into pod (requires WebSocket/SPDY)
 - Port-forward (requires bidirectional streaming)
-- Rollout history for StatefulSets and DaemonSets (requires ControllerRevisions, not ReplicaSets)
 - Resource event stream in the detail panel
 
 ---

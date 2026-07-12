@@ -1,6 +1,7 @@
 import Foundation
 
-/// One entry in a workload's rollout history, corresponding to one owned ReplicaSet.
+/// One entry in a workload's rollout history (ReplicaSet for Deployments,
+/// ControllerRevision for StatefulSets and DaemonSets).
 /// Returned by `GET .../rollout/history`.
 struct RevisionEntry: Decodable, Identifiable, Sendable {
     let revision: Int64

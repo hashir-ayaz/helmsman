@@ -42,12 +42,15 @@ func newFakeProvider(objs ...runtime.Object) *fakeProvider {
 	}}
 }
 
-// newFakeProviderWithRS creates a fake provider that can also list ReplicaSets,
-// which is required by RolloutHistory and RolloutUndo.
+// newFakeProviderWithRS creates a fake provider that can also list ReplicaSets
+// and ControllerRevisions, which is required by RolloutHistory and RolloutUndo.
 func newFakeProviderWithRS(objs ...runtime.Object) *fakeProvider {
 	gvrToListKind := map[schema.GroupVersionResource]string{
-		{Group: "apps", Version: "v1", Resource: "deployments"}:  "DeploymentList",
-		{Group: "apps", Version: "v1", Resource: "replicasets"}: "ReplicaSetList",
+		{Group: "apps", Version: "v1", Resource: "deployments"}:          "DeploymentList",
+		{Group: "apps", Version: "v1", Resource: "replicasets"}:         "ReplicaSetList",
+		{Group: "apps", Version: "v1", Resource: "statefulsets"}:        "StatefulSetList",
+		{Group: "apps", Version: "v1", Resource: "daemonsets"}:          "DaemonSetList",
+		{Group: "apps", Version: "v1", Resource: "controllerrevisions"}:   "ControllerRevisionList",
 	}
 	dyn := dynamicfake.NewSimpleDynamicClientWithCustomListKinds(runtime.NewScheme(), gvrToListKind, objs...)
 	return &fakeProvider{bundle: &cluster.ClientBundle{
@@ -160,6 +163,11 @@ func TestRolloutHistoryEndpoint(t *testing.T) {
 			"name": "my-deploy", "namespace": "default", "uid": "deploy-uid",
 			"annotations": map[string]any{"deployment.kubernetes.io/revision": "1"},
 		},
+		"spec": map[string]any{
+			"selector": map[string]any{
+				"matchLabels": map[string]any{"app": "my-deploy"},
+			},
+		},
 	}}
 	h := New(newFakeProviderWithRS(deploy))
 
@@ -176,12 +184,77 @@ func TestRolloutHistoryEndpoint(t *testing.T) {
 	}
 }
 
+func TestRolloutHistoryEndpoint_statefulSet(t *testing.T) {
+	sts := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apps/v1", "kind": "StatefulSet",
+		"metadata": map[string]any{
+			"name": "my-sts", "namespace": "default", "uid": "sts-uid",
+		},
+		"spec": map[string]any{
+			"selector": map[string]any{
+				"matchLabels": map[string]any{"app": "my-sts"},
+			},
+		},
+	}}
+	cr := &unstructured.Unstructured{Object: map[string]any{
+		"apiVersion": "apps/v1", "kind": "ControllerRevision",
+		"metadata": map[string]any{
+			"name": "my-sts-1", "namespace": "default",
+			"labels": map[string]any{"app": "my-sts"},
+			"ownerReferences": []any{
+				map[string]any{
+					"apiVersion": "apps/v1", "kind": "StatefulSet",
+					"name": "my-sts", "uid": "sts-uid", "controller": true,
+				},
+			},
+		},
+		"revision": int64(1),
+		"data": map[string]any{
+			"spec": map[string]any{
+				"template": map[string]any{
+					"spec": map[string]any{
+						"containers": []any{
+							map[string]any{"name": "app", "image": "nginx:1.21"},
+						},
+					},
+				},
+			},
+		},
+	}}
+	h := New(newFakeProviderWithRS(sts, cr))
+
+	req := httptest.NewRequest(http.MethodGet, "/x", nil)
+	req.SetPathValue("ctx", "dev")
+	req.SetPathValue("ns", "default")
+	req.SetPathValue("workload", "statefulsets")
+	req.SetPathValue("name", "my-sts")
+	rec := httptest.NewRecorder()
+	h.Rollout.History(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var resp APIResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	data, ok := resp.Data.([]any)
+	if !ok || len(data) != 1 {
+		t.Fatalf("expected 1 revision entry, got %+v", resp.Data)
+	}
+}
+
 func TestRolloutUndoEndpoint_missingRevision(t *testing.T) {
 	deploy := &unstructured.Unstructured{Object: map[string]any{
 		"apiVersion": "apps/v1", "kind": "Deployment",
 		"metadata": map[string]any{
 			"name": "my-deploy", "namespace": "default", "uid": "deploy-uid",
 			"annotations": map[string]any{"deployment.kubernetes.io/revision": "1"},
+		},
+		"spec": map[string]any{
+			"selector": map[string]any{
+				"matchLabels": map[string]any{"app": "my-deploy"},
+			},
 		},
 	}}
 	// No replicasets seeded → revision 5 not found → expect non-200.

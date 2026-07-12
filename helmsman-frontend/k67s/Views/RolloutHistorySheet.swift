@@ -25,14 +25,27 @@ struct RolloutHistorySheet: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else if model.revisions.isEmpty {
-                ContentUnavailableView("No History", systemImage: "clock")
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                ContentUnavailableView {
+                    Label("No History", systemImage: "clock")
+                } description: {
+                    Text("No retained revisions. Check revisionHistoryLimit on the workload.")
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 revisionList
             }
         }
         .frame(minWidth: 500, minHeight: 340)
         .task { await model.load(ctx: ctx, ns: ns, workload: workload, name: name) }
+    }
+
+    private var undoFootnote: some View {
+        Text("Undo restores the pod template only. PVC data is not rolled back. OnDelete update strategies require manual pod deletion.")
+            .font(.caption)
+            .foregroundStyle(.secondary)
+            .fixedSize(horizontal: false, vertical: true)
+            .padding(.horizontal, 12)
+            .padding(.bottom, 8)
     }
 
     private var sheetHeader: some View {
@@ -63,7 +76,10 @@ struct RolloutHistorySheet: View {
     }
 
     private var revisionList: some View {
-        List(model.revisions) { entry in
+        VStack(spacing: 0) {
+            undoFootnote
+            Divider()
+            List(model.revisions) { entry in
             RevisionRow(entry: entry) {
                 Task {
                     let ok = await model.undo(
@@ -78,6 +94,7 @@ struct RolloutHistorySheet: View {
             .disabled(model.isUndoing)
         }
         .listStyle(.plain)
+        }
     }
 }
 
