@@ -99,7 +99,7 @@ Universal for all: list + live watch, get, YAML view/edit/apply, delete, **force
 
 ## Networking
 
-Today Networking is **mostly generic CRUD + watch + YAML**, with light overview polish for Services and Endpoints. Ingresses and NetworkPolicies fall back to `GenericOverview`. No networking-specific backend actions exist (everything goes through the dynamic resource pipeline).
+Today Networking is **mostly generic CRUD + watch + YAML**, with overview polish for Services, Endpoints, and NetworkPolicies. Ingresses still fall back to `GenericOverview`. No networking-specific backend actions exist (everything goes through the dynamic resource pipeline).
 
 **Recommended networking sprint (after or interleaved with workload P0):** N2 → N3. N1 is shipped.
 
@@ -124,7 +124,13 @@ Today Networking is **mostly generic CRUD + watch + YAML**, with light overview 
 | N4 | **Port-forward to Services** | Shipped — same session manager as workload #5; Service context menu + Endpoints resolution |
 | N5 | **Ingress custom overview** | Partial — N1 ships hosts/paths/backends + Service drill; TLS/class polish remains |
 | N6 | **Open / copy networking affordances** | Copy Service DNS (`svc.ns.svc.cluster.local`); open LoadBalancer hostname/IP; open Ingress host URL. |
-| N7 | **NetworkPolicy readable summary** | podSelector, policyTypes, ingress/egress peers & ports as structured overview — not only raw YAML. |
+| N7 | **NetworkPolicy readable summary** | Shipped — `NetworkPolicyOverview` (podSelector, policyTypes, ingress/egress peers & ports) |
+
+#### Shipped detail (Networking P1)
+
+| # | Feature | Implementation |
+|---|---------|----------------|
+| N7 | **NetworkPolicy readable summary** | Frontend-only: `NetworkPolicyOverview` in `Views/Detail/Overviews/` dispatched from `ResourceOverview` for `kind: NetworkPolicy`. Parses the existing GET object (`JSONValue`) — no backend changes. Shows applies-to summary, policy types (explicit or inferred), pod selector chips/expressions, ingress/egress rule cards (peers + ports), and deny-all / allow-all cues. Helpers in `K8sObjectHelpers.swift`: `labelSelectorSummary`, `matchExpressionLabel`, `networkPolicyPortLabel`, `networkPolicyPeerLines`, `networkPolicyTypes`. |
 
 ### P2 — Strong polish (after P0–P1)
 
@@ -148,7 +154,7 @@ Today Networking is **mostly generic CRUD + watch + YAML**, with light overview 
 |----------|----------------------|
 | **Services** | Table + live watch; `ServiceOverview` (type, ClusterIP, ports, selectors, **related Pods**, **Endpoints** with EndpointSlice fallback); **Show Pods** context menu; pod/Endpoints drill-down; `PortChipsView`; **Port Forward** |
 | **Ingresses** | `IngressOverview` (hosts, paths, backends, ingress class, LB address); drill to backend **Service** |
-| **NetworkPolicies** | Generic list/get/YAML/delete only (`GenericOverview`) |
+| **NetworkPolicies** | Table + live watch; `NetworkPolicyOverview` (podSelector, policyTypes, ingress/egress rule cards) |
 | **Endpoints** | Table + live watch; `EndpointsOverview` (ready/not-ready counts + address chips); clickable pod `targetRef` drill-down |
 
 **Not in catalog yet:** EndpointSlices, IngressClasses, Gateway API, CNI/mesh CRDs.

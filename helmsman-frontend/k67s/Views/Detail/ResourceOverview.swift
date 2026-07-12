@@ -56,6 +56,7 @@ struct ResourceOverview: View {
                 namespace: namespace,
                 onSelectService: onSelectService
             )
+        case "NetworkPolicy": NetworkPolicyOverview(object: object)
         case "Job": JobOverview(object: object)
         case "CronJob": CronJobOverview(object: object)
         case "ConfigMap", "Secret": ConfigOverview(object: object)
