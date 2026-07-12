@@ -27,6 +27,16 @@ struct PortForwardPortOption: Identifiable, Hashable, Sendable {
         self.port = port
         self.protocol = `protocol`
     }
+
+    /// Manual port entry when the object has no declared ports (or user wants another port).
+    static let custom = PortForwardPortOption(
+        containerName: nil,
+        servicePortName: "custom",
+        port: 0,
+        protocol: "TCP"
+    )
+
+    var isCustom: Bool { port == 0 && servicePortName == "custom" }
 }
 
 /// Context for the Port Forward start sheet.
@@ -43,19 +53,27 @@ struct PortForwardTarget: Identifiable {
         return ns.isEmpty ? row.object.name : "\(ns)/\(row.object.name)"
     }
 
-    var remoteLabel: String {
+    var remoteLabelPrefix: String {
         switch resource.resource {
-        case "pods":
-            return "pod:\(portOption.port)"
-        case "services":
-            return "service:\(portOption.port)"
-        default:
-            return ":\(portOption.port)"
+        case "pods": return "pod:"
+        case "services": return "service:"
+        default: return ":"
         }
     }
 
+    var remoteLabel: String {
+        if portOption.isCustom {
+            return "\(remoteLabelPrefix)…"
+        }
+        return "\(remoteLabelPrefix)\(portOption.port)"
+    }
+
     var suggestedLocalPort: String {
-        String(portOption.port)
+        portOption.isCustom ? "" : String(portOption.port)
+    }
+
+    var suggestedRemotePort: String {
+        portOption.isCustom ? "" : String(portOption.port)
     }
 }
 

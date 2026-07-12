@@ -142,6 +142,13 @@ struct ResourceListView: View {
         // Stable identity per resource/namespace/context so SwiftUI rebuilds the
         // table when the column set changes rather than mutating it mid-layout.
         .id(taskKey)
+        .onChange(of: selectedRowID) { _, id in
+            guard resource.supportsPortForward,
+                  let id,
+                  let row = model.payload?.rows.first(where: { $0.id == id })
+            else { return }
+            Task { await loadPortForwardOptions(for: row) }
+        }
         .onChange(of: model.visibleColumns.map(\.id)) { _, _ in
             // Column structure changed — NSTableView cannot keep a valid selection index.
             selectedRowID = nil
@@ -191,27 +198,11 @@ struct ResourceListView: View {
             }
 
             if resource.supportsPortForward, hasNamespace {
+                // Start fetch as soon as the context menu builds. Waiting for
+                // Menu.onAppear races the first paint and shows a false "No ports".
+                let _ = schedulePortForwardLoad(for: row)
                 Menu("Port Forward") {
-                    let options = portForwardOptions[row.id] ?? []
-                    if portForwardLoadingIDs.contains(row.id), options.isEmpty {
-                        Button("Loading…") {}.disabled(true)
-                    } else if options.isEmpty {
-                        Button("No ports") {}.disabled(true)
-                    } else {
-                        ForEach(options) { option in
-                            Button(option.label) {
-                                actions.beginPortForward(PortForwardTarget(
-                                    row: row,
-                                    ctx: app.selectedContext,
-                                    resource: resource,
-                                    portOption: option
-                                ))
-                            }
-                        }
-                    }
-                }
-                .onAppear {
-                    Task { await loadPortForwardOptions(for: row) }
+                    portForwardSubmenu(for: row)
                 }
             }
 
@@ -387,9 +378,55 @@ struct ResourceListView: View {
         ))
     }
 
+    /// Kicks off a port-option fetch without blocking menu construction.
+    private func schedulePortForwardLoad(for row: TablePayload.Row) -> Bool {
+        let rowID = row.id
+        guard portForwardOptions[rowID] == nil, !portForwardLoadingIDs.contains(rowID) else {
+            return false
+        }
+        Task { await loadPortForwardOptions(for: row) }
+        return true
+    }
+
+    @ViewBuilder
+    private func portForwardSubmenu(for row: TablePayload.Row) -> some View {
+        // nil = not loaded yet → Loading. [] = loaded with no declared ports.
+        if let options = portForwardOptions[row.id] {
+            if options.isEmpty {
+                Button("No declared ports") {}.disabled(true)
+            } else {
+                ForEach(options) { option in
+                    Button(option.label) {
+                        actions.beginPortForward(PortForwardTarget(
+                            row: row,
+                            ctx: app.selectedContext,
+                            resource: resource,
+                            portOption: option
+                        ))
+                    }
+                }
+            }
+            Divider()
+            Button("Custom Port…") {
+                actions.beginPortForward(PortForwardTarget(
+                    row: row,
+                    ctx: app.selectedContext,
+                    resource: resource,
+                    portOption: .custom
+                ))
+            }
+        } else {
+            Button("Loading…") {}.disabled(true)
+                .task(id: row.id) {
+                    await loadPortForwardOptions(for: row)
+                }
+        }
+    }
+
     private func loadPortForwardOptions(for row: TablePayload.Row) async {
         let rowID = row.id
-        guard portForwardOptions[rowID] == nil else { return }
+        if portForwardOptions[rowID] != nil { return }
+        if portForwardLoadingIDs.contains(rowID) { return }
         portForwardLoadingIDs.insert(rowID)
         defer { portForwardLoadingIDs.remove(rowID) }
         do {
@@ -407,7 +444,7 @@ struct ResourceListView: View {
             }
             portForwardOptions[rowID] = options
         } catch {
-            portForwardOptions[rowID] = []
+            // Leave nil so the next open retries instead of caching a false empty.
         }
     }
 

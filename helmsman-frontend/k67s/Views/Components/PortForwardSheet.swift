@@ -7,7 +7,12 @@ struct PortForwardSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     private var canSubmit: Bool {
-        !actions.isBusy
+        guard !actions.isBusy else { return false }
+        if target.portOption.isCustom {
+            let remote = actions.portForwardRemotePortText.trimmingCharacters(in: .whitespaces)
+            return Int(remote).map { $0 > 0 } ?? false
+        }
+        return true
     }
 
     var body: some View {
@@ -21,8 +26,11 @@ struct PortForwardSheet: View {
         .frame(width: 420)
         .padding(.top, 4)
         .onAppear {
-            if actions.portForwardLocalPortText.isEmpty {
+            if actions.portForwardLocalPortText.isEmpty, !target.portOption.isCustom {
                 actions.portForwardLocalPortText = target.suggestedLocalPort
+            }
+            if actions.portForwardRemotePortText.isEmpty {
+                actions.portForwardRemotePortText = target.suggestedRemotePort
             }
             actions.portForwardOpenInBrowser = true
         }
@@ -49,8 +57,17 @@ struct PortForwardSheet: View {
                     .frame(width: 88)
                 Text("→")
                     .foregroundStyle(.secondary)
-                Text(target.remoteLabel)
-                    .font(.body.monospaced())
+                if target.portOption.isCustom {
+                    Text(target.remoteLabelPrefix)
+                        .font(.body.monospaced())
+                        .foregroundStyle(.secondary)
+                    TextField("Port", text: $actions.portForwardRemotePortText)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 88)
+                } else {
+                    Text(target.remoteLabel)
+                        .font(.body.monospaced())
+                }
             }
 
             Toggle("Open in browser when ready", isOn: $actions.portForwardOpenInBrowser)

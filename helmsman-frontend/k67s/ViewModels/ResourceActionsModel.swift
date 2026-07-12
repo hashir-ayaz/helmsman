@@ -29,6 +29,7 @@ final class ResourceActionsModel {
     var resizeTarget: ResizePVCTarget?
     var portForwardTarget: PortForwardTarget?
     var portForwardLocalPortText = ""
+    var portForwardRemotePortText = ""
     var portForwardOpenInBrowser = true
     var replicasText = ""
     var resizeValueText = ""
@@ -68,14 +69,26 @@ final class ResourceActionsModel {
 
     func beginPortForward(_ target: PortForwardTarget) {
         portForwardLocalPortText = target.suggestedLocalPort
+        portForwardRemotePortText = target.suggestedRemotePort
         portForwardOpenInBrowser = true
         portForwardTarget = target
     }
 
     func performPortForward(_ target: PortForwardTarget?) async {
         guard let target else { return }
-        let trimmed = portForwardLocalPortText.trimmingCharacters(in: .whitespaces)
-        let localPort = trimmed.isEmpty ? 0 : (Int(trimmed) ?? 0)
+        let localTrimmed = portForwardLocalPortText.trimmingCharacters(in: .whitespaces)
+        let localPort = localTrimmed.isEmpty ? 0 : (Int(localTrimmed) ?? 0)
+        let remotePort: Int
+        if target.portOption.isCustom {
+            let remoteTrimmed = portForwardRemotePortText.trimmingCharacters(in: .whitespaces)
+            guard let parsed = Int(remoteTrimmed), parsed > 0 else {
+                actionError = .transport("Enter a valid remote port.")
+                return
+            }
+            remotePort = parsed
+        } else {
+            remotePort = target.portOption.port
+        }
         let openBrowser = portForwardOpenInBrowser
         isBusy = true
         actionError = nil
@@ -87,8 +100,8 @@ final class ResourceActionsModel {
                 resource: target.resource.resource,
                 name: target.row.object.name,
                 localPort: localPort,
-                remotePort: target.portOption.port,
-                container: target.portOption.containerName
+                remotePort: remotePort,
+                container: target.portOption.isCustom ? nil : target.portOption.containerName
             )
             portForwardTarget = nil
             onPortForwardStarted(session)
