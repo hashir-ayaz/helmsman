@@ -97,4 +97,4 @@ Sheets: `RolloutHistorySheet`, `ResizePVCSheet`, `DeleteOptionsSheet` (cascade d
 
 ## Detail Overviews
 
-Kind-specific overview components in `Views/Detail/Overviews/`; `ResourceOverview` dispatches by resource type.
+Kind-specific overview components in `Views/Detail/Overviews/`; `ResourceOverview` dispatches by resource type. Networking: `ServiceOverview`, `EndpointsOverview`, `NetworkPolicyOverview` (Ingress still `GenericOverview`).

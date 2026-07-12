@@ -34,6 +34,7 @@ struct ResourceOverview: View {
             )
         case "Service": ServiceOverview(object: object)
         case "Endpoints": EndpointsOverview(object: object)
+        case "NetworkPolicy": NetworkPolicyOverview(object: object)
         case "Job": JobOverview(object: object)
         case "CronJob": CronJobOverview(object: object)
         case "ConfigMap", "Secret": ConfigOverview(object: object)

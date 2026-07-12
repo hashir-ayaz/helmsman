@@ -210,4 +210,86 @@ enum K8s {
         }
         return nil
     }
+
+    // MARK: - NetworkPolicy
+
+    /// True when a label selector is absent or has no matchLabels / matchExpressions.
+    static func isEmptyLabelSelector(_ selector: JSONValue?) -> Bool {
+        guard let selector else { return true }
+        let labels = selector["matchLabels"]?.objectValue ?? [:]
+        let expressions = selector["matchExpressions"]?.arrayValue ?? []
+        return labels.isEmpty && expressions.isEmpty
+    }
+
+    /// Compact summary for a NetworkPolicy pod or peer selector.
+    static func labelSelectorSummary(_ selector: JSONValue?, emptyLabel: String = "Any") -> String {
+        guard let selector, !isEmptyLabelSelector(selector) else { return emptyLabel }
+        var parts: [String] = []
+        if let labels = selector["matchLabels"]?.objectValue, !labels.isEmpty {
+            parts.append(labelSelector(from: labels))
+        }
+        for expr in selector["matchExpressions"]?.arrayValue ?? [] {
+            if let line = matchExpressionLabel(expr) { parts.append(line) }
+        }
+        return parts.isEmpty ? emptyLabel : parts.joined(separator: ", ")
+    }
+
+    /// Human-readable `matchExpressions` entry, e.g. `tier NotIn (cache, db)`.
+    static func matchExpressionLabel(_ expression: JSONValue) -> String? {
+        guard let key = expression["key"]?.stringValue, !key.isEmpty else { return nil }
+        let op = expression["operator"]?.stringValue ?? "In"
+        let values = (expression["values"]?.arrayValue ?? []).compactMap(\.stringValue)
+        switch op {
+        case "Exists", "DoesNotExist":
+            return "\(key) \(op)"
+        case "In", "NotIn":
+            return values.isEmpty ? "\(key) \(op)" : "\(key) \(op) (\(values.joined(separator: ", ")))"
+        default:
+            return values.isEmpty ? "\(key) \(op)" : "\(key) \(op) (\(values.joined(separator: ", ")))"
+        }
+    }
+
+    /// Resolves explicit or inferred policy types for a NetworkPolicy spec.
+    static func networkPolicyTypes(spec: JSONValue?) -> [String] {
+        let explicit = (spec?["policyTypes"]?.arrayValue ?? []).compactMap(\.stringValue)
+        if !explicit.isEmpty { return explicit }
+        var inferred: [String] = []
+        if let ingress = spec?["ingress"]?.arrayValue, !ingress.isEmpty { inferred.append("Ingress") }
+        if let egress = spec?["egress"]?.arrayValue, !egress.isEmpty { inferred.append("Egress") }
+        return inferred
+    }
+
+    /// Port label like `TCP/80` or `TCP/80-8080` (supports int or named ports).
+    static func networkPolicyPortLabel(_ port: JSONValue) -> String {
+        let proto = port["protocol"]?.stringValue ?? "TCP"
+        let start = port["port"]?.displayString
+        let end = port["endPort"]?.displayString
+        switch (start, end) {
+        case let (s?, e?) where s != e:
+            return "\(proto)/\(s)-\(e)"
+        case let (s?, _):
+            return "\(proto)/\(s)"
+        default:
+            return proto
+        }
+    }
+
+    /// Human-readable lines for one ingress `from` or egress `to` peer.
+    static func networkPolicyPeerLines(_ peer: JSONValue) -> [String] {
+        var lines: [String] = []
+        if peer["podSelector"] != nil {
+            lines.append("pods: \(labelSelectorSummary(peer["podSelector"], emptyLabel: "any"))")
+        }
+        if peer["namespaceSelector"] != nil {
+            lines.append("namespaces: \(labelSelectorSummary(peer["namespaceSelector"], emptyLabel: "any"))")
+        }
+        if let block = peer["ipBlock"]?.objectValue {
+            var cidr = block["cidr"]?.stringValue ?? "?"
+            if let except = (block["except"]?.arrayValue ?? []).compactMap(\.stringValue), !except.isEmpty {
+                cidr += " (except \(except.joined(separator: ", ")))"
+            }
+            lines.append("ipBlock: \(cidr)")
+        }
+        return lines.isEmpty ? ["any"] : lines
+    }
 }
