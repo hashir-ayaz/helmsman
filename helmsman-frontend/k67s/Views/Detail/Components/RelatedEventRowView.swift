@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// A single related event row for the Pod detail panel.
-struct PodEventRowView: View {
-    let event: ResourceDetailModel.PodRelatedEvent
+/// A single related event row in a resource detail panel.
+struct RelatedEventRowView: View {
+    let event: ResourceDetailModel.RelatedEvent
 
     var body: some View {
         HStack(alignment: .top, spacing: 8) {

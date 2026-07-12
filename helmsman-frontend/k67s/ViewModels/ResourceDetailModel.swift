@@ -3,7 +3,7 @@ import SwiftUI
 /// Loads the full raw object and (lazily) the YAML for one selected resource.
 @Observable
 final class ResourceDetailModel {
-    struct PodRelatedEvent: Identifiable {
+    struct RelatedEvent: Identifiable {
         let id: String
         let type: String
         let reason: String
@@ -13,7 +13,7 @@ final class ResourceDetailModel {
 
     private(set) var object: JSONValue?
     private(set) var yaml: String?
-    private(set) var events: [PodRelatedEvent] = []
+    private(set) var events: [RelatedEvent] = []
     private(set) var isLoadingObject = false
     private(set) var isLoadingYAML = false
     private(set) var isLoadingEvents = false
@@ -49,11 +49,11 @@ final class ResourceDetailModel {
         }
     }
 
-    func loadEvents(ctx: String, ns: String?, podName: String) async {
+    func loadEvents(ctx: String, ns: String?, kind: String, name: String) async {
         guard let ns else { return }
         isLoadingEvents = true
         defer { isLoadingEvents = false }
-        let selector = "involvedObject.name=\(podName),involvedObject.kind=Pod"
+        let selector = "involvedObject.name=\(name),involvedObject.kind=\(kind)"
         do {
             let table = try await KubeAPIClient.shared.listResources(
                 ctx: ctx,
@@ -68,9 +68,9 @@ final class ResourceDetailModel {
         }
     }
 
-    private static func parseEventsTable(_ table: TablePayload) -> [PodRelatedEvent] {
+    private static func parseEventsTable(_ table: TablePayload) -> [RelatedEvent] {
         table.rows.map { row in
-            PodRelatedEvent(
+            RelatedEvent(
                 id: row.id,
                 type: cell(row, columns: table.columns, named: ["Type"]) ?? "",
                 reason: cell(row, columns: table.columns, named: ["Reason"]) ?? "—",

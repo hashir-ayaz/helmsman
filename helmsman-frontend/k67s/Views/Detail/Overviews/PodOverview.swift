@@ -2,8 +2,6 @@ import SwiftUI
 
 struct PodOverview: View {
     let object: JSONValue
-    var events: [ResourceDetailModel.PodRelatedEvent] = []
-    var isLoadingEvents = false
 
     var body: some View {
         DetailSection(title: "Overview") {
@@ -85,25 +83,6 @@ struct PodOverview: View {
                         Text(parts.joined(separator: ": "))
                             .font(.caption).foregroundStyle(.secondary)
                     }
-                }
-            }
-        }
-
-        eventsSection
-    }
-
-    @ViewBuilder
-    private var eventsSection: some View {
-        DetailSection(title: "Events") {
-            if isLoadingEvents {
-                PodEventsSkeleton()
-            } else if events.isEmpty {
-                Text("No events")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            } else {
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(events) { PodEventRowView(event: $0) }
                 }
             }
         }

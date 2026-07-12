@@ -54,13 +54,7 @@ struct ResourceDetailView: View {
                 ctx: app.selectedContext, ns: namespace,
                 resource: resource, name: row.object.name
             )
-            async let eventsLoad: Void = resource.isPods
-                ? model.loadEvents(
-                    ctx: app.selectedContext,
-                    ns: namespace,
-                    podName: row.object.name
-                )
-                : ()
+            async let eventsLoad: Void = loadRelatedEventsIfNeeded()
             _ = await (objectLoad, eventsLoad)
         }
         .onChange(of: tab) { _, newTab in
@@ -127,8 +121,9 @@ struct ResourceDetailView: View {
                 } else if let object = model.object {
                     ResourceOverview(
                         object: object,
-                        podEvents: model.events,
-                        isLoadingPodEvents: model.isLoadingEvents,
+                        relatedEvents: model.events,
+                        isLoadingEvents: model.isLoadingEvents,
+                        showRelatedEvents: resource.supportsRelatedEvents,
                         ctx: app.selectedContext,
                         namespace: namespace,
                         onSelectPod: parentRow == nil ? onSelectPod : nil
@@ -186,4 +181,14 @@ struct ResourceDetailView: View {
         }
     }
 
+    private func loadRelatedEventsIfNeeded() async {
+        guard resource.supportsRelatedEvents,
+              let kind = resource.eventInvolvedObjectKind else { return }
+        await model.loadEvents(
+            ctx: app.selectedContext,
+            ns: namespace,
+            kind: kind,
+            name: row.object.name
+        )
+    }
 }

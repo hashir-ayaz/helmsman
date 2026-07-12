@@ -75,6 +75,30 @@ struct ResourceType: Identifiable, Hashable, Sendable {
 
     /// True for controller workloads that select pods via `spec.selector.matchLabels`.
     var supportsRelatedPods: Bool { scaleWorkload != nil || restartWorkload != nil }
+
+    /// True for resources that show a related Events panel in the detail overview.
+    var supportsRelatedEvents: Bool {
+        switch resource {
+        case "pods", "deployments.apps", "statefulsets.apps",
+             "daemonsets.apps", "jobs.batch", "cronjobs.batch":
+            true
+        default:
+            false
+        }
+    }
+
+    /// Exact Kubernetes Kind for Event `involvedObject.kind` field selectors.
+    var eventInvolvedObjectKind: String? {
+        switch resource {
+        case "pods": "Pod"
+        case "deployments.apps": "Deployment"
+        case "statefulsets.apps": "StatefulSet"
+        case "daemonsets.apps": "DaemonSet"
+        case "jobs.batch": "Job"
+        case "cronjobs.batch": "CronJob"
+        default: nil
+        }
+    }
 }
 
 enum ResourceSection: String, CaseIterable, Hashable, Sendable {
