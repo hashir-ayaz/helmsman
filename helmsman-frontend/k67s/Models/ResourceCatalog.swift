@@ -93,6 +93,17 @@ struct ResourceType: Identifiable, Hashable, Sendable {
     /// True for controller workloads that select pods via `spec.selector.matchLabels`.
     var supportsRelatedPods: Bool { scaleWorkload != nil || restartWorkload != nil }
 
+    /// True for resources that can navigate to a filtered Pods list (workloads + Services).
+    var supportsShowPods: Bool { supportsRelatedPods || resource == "services" }
+
+    /// True when the detail overview can drill into a related pod row.
+    var supportsDetailPodDrill: Bool {
+        supportsRelatedPods || resource == "services" || resource == "endpoints"
+    }
+
+    /// True when the detail overview can drill into a backend Service (Ingress).
+    var isIngress: Bool { resource == "ingresses.networking.k8s.io" }
+
     /// True for resources that show a related Events panel in the detail overview.
     var supportsRelatedEvents: Bool {
         switch resource {

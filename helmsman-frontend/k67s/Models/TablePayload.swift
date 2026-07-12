@@ -32,6 +32,16 @@ struct TablePayload: Decodable, Sendable {
         /// Stub used to build follow-up get/yaml/delete URLs — never parse cells.
         let object: ObjectStub
 
+        init(cells: [JSONValue] = [], object: ObjectStub) {
+            self.cells = cells
+            self.object = object
+        }
+
+        /// Synthetic row for detail-pane drill-down when no list row exists.
+        static func stub(name: String, namespace: String?) -> Row {
+            Row(object: ObjectStub(namespace: namespace, name: name))
+        }
+
         /// Stable identity for table selection — must not change between reloads.
         /// UIDs from the server can appear on a later fetch after being absent on
         /// the first, which would reshuffle IDs and crash NSTableView selection.
@@ -48,5 +58,11 @@ struct TablePayload: Decodable, Sendable {
         let namespace: String?
         let name: String
         let uid: String?
+
+        init(namespace: String?, name: String, uid: String? = nil) {
+            self.namespace = namespace
+            self.name = name
+            self.uid = uid
+        }
     }
 }

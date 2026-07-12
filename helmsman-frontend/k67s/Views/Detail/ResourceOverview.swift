@@ -9,6 +9,9 @@ struct ResourceOverview: View {
     var ctx: String?
     var namespace: String?
     var onSelectPod: ((TablePayload.Row) -> Void)?
+    var onSelectService: ((TablePayload.Row) -> Void)?
+    var onSelectEndpoints: ((TablePayload.Row) -> Void)?
+    var onShowAllPods: (() -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -32,8 +35,27 @@ struct ResourceOverview: View {
                 namespace: namespace,
                 onSelectPod: onSelectPod
             )
-        case "Service": ServiceOverview(object: object)
-        case "Endpoints": EndpointsOverview(object: object)
+        case "Service":
+            ServiceOverview(
+                object: object,
+                ctx: ctx,
+                namespace: namespace,
+                onSelectPod: onSelectPod,
+                onShowAllPods: onShowAllPods,
+                onSelectEndpoints: onSelectEndpoints
+            )
+        case "Endpoints":
+            EndpointsOverview(
+                object: object,
+                namespace: namespace,
+                onSelectPod: onSelectPod
+            )
+        case "Ingress":
+            IngressOverview(
+                object: object,
+                namespace: namespace,
+                onSelectService: onSelectService
+            )
         case "Job": JobOverview(object: object)
         case "CronJob": CronJobOverview(object: object)
         case "ConfigMap", "Secret": ConfigOverview(object: object)

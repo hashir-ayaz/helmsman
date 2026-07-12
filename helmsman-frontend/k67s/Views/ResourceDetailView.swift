@@ -10,6 +10,9 @@ struct ResourceDetailView: View {
     var parentResourceTitle: String?
     var onBack: (() -> Void)?
     var onSelectPod: ((TablePayload.Row) -> Void)?
+    var onSelectService: ((TablePayload.Row) -> Void)?
+    var onSelectEndpoints: ((TablePayload.Row) -> Void)?
+    var onShowAllPods: (() -> Void)?
 
     @State private var model = ResourceDetailModel()
     @State private var tab: Tab = .overview
@@ -126,7 +129,10 @@ struct ResourceDetailView: View {
                         showRelatedEvents: resource.supportsRelatedEvents,
                         ctx: app.selectedContext,
                         namespace: namespace,
-                        onSelectPod: parentRow == nil ? onSelectPod : nil
+                        onSelectPod: resource.resource != "pods" ? onSelectPod : nil,
+                        onSelectService: resource.isIngress ? onSelectService : nil,
+                        onSelectEndpoints: resource.resource == "services" ? onSelectEndpoints : nil,
+                        onShowAllPods: resource.resource == "services" ? onShowAllPods : nil
                     )
                 } else if let error = model.error {
                     Text(error.errorDescription ?? "Error")

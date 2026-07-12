@@ -31,6 +31,14 @@ struct ResourceListView: View {
         ResourceType.all.first { $0.resource == "pods" }
     }
 
+    private var servicesResource: ResourceType? {
+        ResourceType.all.first { $0.resource == "services" }
+    }
+
+    private var endpointsResource: ResourceType? {
+        ResourceType.all.first { $0.resource == "endpoints" }
+    }
+
     /// Reload whenever context, namespace, resource, or pods filter changes.
     private var taskKey: String {
         let filterKey = resource.isPods ? (app.podsListFilter?.labelSelector ?? "") : ""
@@ -46,10 +54,21 @@ struct ResourceListView: View {
                     resource: focus.resource,
                     row: focus.row,
                     parentRow: focus.parent,
-                    parentResourceTitle: focus.parent != nil ? resource.title : nil,
-                    onBack: focus.parent != nil ? { backToParentWorkload() } : nil,
-                    onSelectPod: focus.parent == nil && resource.supportsRelatedPods
+                    parentResourceTitle: focus.parent != nil
+                        ? (focus.parentResource?.title ?? resource.title)
+                        : nil,
+                    onBack: focus.parent != nil ? { backToParent() } : nil,
+                    onSelectPod: focus.resource.supportsDetailPodDrill && focus.resource.resource != "pods"
                         ? { drillToPod($0) }
+                        : nil,
+                    onSelectService: focus.resource.isIngress
+                        ? { drillToService($0) }
+                        : nil,
+                    onSelectEndpoints: focus.resource.resource == "services"
+                        ? { drillToEndpoints($0) }
+                        : nil,
+                    onShowAllPods: focus.resource.resource == "services"
+                        ? { Task { await showAllPodsForFocusedService() } }
                         : nil
                 )
                 .id("\(focus.resource.id)/\(focus.row.id)")
@@ -182,7 +201,7 @@ struct ResourceListView: View {
             // ── Inspect / Logs ──────────────────────────────────────────────
             Button("Inspect") { inspect(id) }
 
-            if resource.supportsRelatedPods {
+            if resource.supportsShowPods {
                 Button("Show Pods") {
                     Task { await showPodsForRow(row) }
                 }
@@ -306,15 +325,47 @@ struct ResourceListView: View {
         }
     }
 
-    private func drillToPod(_ podRow: TablePayload.Row) {
-        guard let parentRow = inspectedRow,
-              let podsResource else { return }
-        detailFocus = DetailFocus(resource: podsResource, row: podRow, parent: parentRow)
+    private func drillTo(target: ResourceType, row: TablePayload.Row) {
+        if let current = detailFocus {
+            let parentResource = current.resource == resource ? nil : current.resource
+            let anchorParentResource = current.parentResource ?? (current.parent != nil ? resource : nil)
+            detailFocus = DetailFocus(
+                resource: target,
+                row: row,
+                parent: current.row,
+                parentResource: parentResource,
+                anchorParent: current.parent,
+                anchorParentResource: anchorParentResource
+            )
+        } else if let parentRow = inspectedRow {
+            detailFocus = DetailFocus(resource: target, row: row, parent: parentRow)
+        }
     }
 
-    private func backToParentWorkload() {
-        guard let parent = detailFocus?.parent else { return }
-        detailFocus = DetailFocus(resource: resource, row: parent, parent: nil)
+    private func drillToPod(_ podRow: TablePayload.Row) {
+        guard let podsResource else { return }
+        drillTo(target: podsResource, row: podRow)
+    }
+
+    private func drillToService(_ serviceRow: TablePayload.Row) {
+        guard let servicesResource else { return }
+        drillTo(target: servicesResource, row: serviceRow)
+    }
+
+    private func drillToEndpoints(_ endpointsRow: TablePayload.Row) {
+        guard let endpointsResource else { return }
+        drillTo(target: endpointsResource, row: endpointsRow)
+    }
+
+    private func backToParent() {
+        guard let focus = detailFocus, let parent = focus.parent else { return }
+        let parentResource = focus.parentResource ?? resource
+        detailFocus = DetailFocus(
+            resource: parentResource,
+            row: parent,
+            parent: focus.anchorParent,
+            parentResource: focus.anchorParentResource
+        )
     }
 
     private func showPodsForRow(_ row: TablePayload.Row) async {
@@ -325,12 +376,32 @@ struct ResourceListView: View {
                 resource: resource.resource,
                 name: row.object.name
             )
-            guard let labels = object["spec"]?["selector"]?["matchLabels"]?.objectValue,
-                  !labels.isEmpty else {
-                actions.actionError = .transport("This workload has no pod selector.")
+            guard let labels = K8s.podMatchLabels(from: object), !labels.isEmpty else {
+                actions.actionError = .transport("This resource has no pod selector.")
                 return
             }
             app.showPods(for: resource, row: row, matchLabels: labels)
+        } catch let apiError as APIError {
+            actions.actionError = apiError
+        } catch {
+            actions.actionError = .transport(error.localizedDescription)
+        }
+    }
+
+    private func showAllPodsForFocusedService() async {
+        guard let focus = detailFocus, focus.resource.resource == "services" else { return }
+        do {
+            let object = try await KubeAPIClient.shared.getObject(
+                ctx: app.selectedContext,
+                ns: focus.row.object.namespace,
+                resource: focus.resource.resource,
+                name: focus.row.object.name
+            )
+            guard let labels = K8s.podMatchLabels(from: object), !labels.isEmpty else {
+                actions.actionError = .transport("This service has no pod selector.")
+                return
+            }
+            app.showPods(for: focus.resource, row: focus.row, matchLabels: labels)
         } catch let apiError as APIError {
             actions.actionError = apiError
         } catch {

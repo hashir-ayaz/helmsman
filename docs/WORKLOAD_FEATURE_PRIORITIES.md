@@ -101,22 +101,28 @@ Universal for all: list + live watch, get, YAML view/edit/apply, delete, **force
 
 Today Networking is **mostly generic CRUD + watch + YAML**, with light overview polish for Services and Endpoints. Ingresses and NetworkPolicies fall back to `GenericOverview`. No networking-specific backend actions exist (everything goes through the dynamic resource pipeline).
 
-**Recommended networking sprint (after or interleaved with workload P0):** N1 → N2 → N3. These close the “why isn’t traffic reaching my app?” loop without streaming complexity.
+**Recommended networking sprint (after or interleaved with workload P0):** N2 → N3. N1 is shipped.
 
 ### P0 — Weekly pain (do these first)
 
-| # | Feature | Why it matters |
+| # | Feature | Status |
+|---|---------|--------|
+| N1 | **Relationship navigation** | Shipped — Service → Pods / Endpoints; Ingress → Services → Pods |
+| N2 | **EndpointSlices in catalog** | Open — N1 includes EndpointSlice fallback on Service detail only |
+| N3 | **Service backend health cues** | Open — partial: ready/not-ready counts on Service detail Endpoints section |
+
+#### Shipped detail (networking P0)
+
+| # | Feature | Implementation |
 |---|---------|----------------|
-| N1 | **Relationship navigation** | Service → matching Pods / Endpoints(/Slices); Ingress → backend Service(s) → Pods. Core debugging mental model; without it users leave for kubectl. |
-| N2 | **EndpointSlices in catalog** | Modern clusters use EndpointSlices; legacy Endpoints alone is incomplete for backend diagnosis. |
-| N3 | **Service backend health cues** | Empty endpoints, selector mismatch warnings, ready vs not-ready summary linked from the Service. Answers “is anything behind this Service?” |
+| N1 | **Relationship navigation** | **Frontend-only** — reuses existing list/get APIs with server-side `labelSelector`. **Service detail:** `ServiceOverview` loads related pods (capped at 20 + **Show all in Pods list…**) via `RelatedPodsModel`; Endpoints section via `RelatedEndpointsModel` (Endpoints GET, EndpointSlice list fallback); drill to Endpoints detail or pod rows. **Endpoints detail:** clickable `targetRef` pod chips. **Ingress detail:** `IngressOverview` lists hosts/paths/backends; click backend → Service detail drill. **Show Pods** context menu extended to Services (`supportsShowPods`, `K8s.podMatchLabels`). **Drill stack:** generalized `DetailFocus` with `parentResource` + anchor for Ingress → Service → Pod back navigation. |
 
 ### P1 — Core ops parity (next tier)
 
 | # | Feature | Status |
 |---|---------|--------|
 | N4 | **Port-forward to Services** | Shipped — same session manager as workload #5; Service context menu + Endpoints resolution |
-| N5 | **Ingress custom overview** | Hosts, paths, TLS, backends, ingress class, loadBalancer status — today YAML/JSON only. |
+| N5 | **Ingress custom overview** | Partial — N1 ships hosts/paths/backends + Service drill; TLS/class polish remains |
 | N6 | **Open / copy networking affordances** | Copy Service DNS (`svc.ns.svc.cluster.local`); open LoadBalancer hostname/IP; open Ingress host URL. |
 | N7 | **NetworkPolicy readable summary** | podSelector, policyTypes, ingress/egress peers & ports as structured overview — not only raw YAML. |
 
@@ -140,10 +146,10 @@ Today Networking is **mostly generic CRUD + watch + YAML**, with light overview 
 
 | Resource | Specialized behavior |
 |----------|----------------------|
-| **Services** | Table + live watch; `ServiceOverview` (type, ClusterIP, ports, selectors); `PortChipsView` for Port(s) columns; **Port Forward** (context menu submenu + sheet) |
-| **Ingresses** | Generic list/get/YAML/delete only (`GenericOverview`) |
+| **Services** | Table + live watch; `ServiceOverview` (type, ClusterIP, ports, selectors, **related Pods**, **Endpoints** with EndpointSlice fallback); **Show Pods** context menu; pod/Endpoints drill-down; `PortChipsView`; **Port Forward** |
+| **Ingresses** | `IngressOverview` (hosts, paths, backends, ingress class, LB address); drill to backend **Service** |
 | **NetworkPolicies** | Generic list/get/YAML/delete only (`GenericOverview`) |
-| **Endpoints** | Table + live watch; `EndpointsOverview` (ready/not-ready counts + address chips) |
+| **Endpoints** | Table + live watch; `EndpointsOverview` (ready/not-ready counts + address chips); clickable pod `targetRef` drill-down |
 
 **Not in catalog yet:** EndpointSlices, IngressClasses, Gateway API, CNI/mesh CRDs.
 

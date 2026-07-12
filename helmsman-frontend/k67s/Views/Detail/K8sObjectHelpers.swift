@@ -85,6 +85,20 @@ enum K8s {
         }.joined(separator: ",")
     }
 
+    /// Pod selector labels for workloads (`spec.selector.matchLabels`) or Services (`spec.selector`).
+    static func podMatchLabels(from object: JSONValue) -> [String: JSONValue]? {
+        if let matchLabels = object["spec"]?["selector"]?["matchLabels"]?.objectValue,
+           !matchLabels.isEmpty {
+            return matchLabels
+        }
+        if object["kind"]?.stringValue == "Service",
+           let selector = object["spec"]?["selector"]?.objectValue,
+           !selector.isEmpty {
+            return selector
+        }
+        return nil
+    }
+
     /// Controlling owner as "Kind/name", preferring the controller=true ref.
     static func controlledBy(_ object: JSONValue) -> String? {
         guard let refs = object["metadata"]?["ownerReferences"]?.arrayValue,

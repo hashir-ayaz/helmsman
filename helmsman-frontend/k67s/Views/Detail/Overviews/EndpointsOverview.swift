@@ -4,6 +4,12 @@ import SwiftUI
 /// so Inspect is not limited by the table column's truncated "+N more" cell.
 struct EndpointsOverview: View {
     let object: JSONValue
+    var namespace: String?
+    var onSelectPod: ((TablePayload.Row) -> Void)?
+
+    private var entries: [EndpointAddressEntry] {
+        EndpointAddressParser.fromEndpoints(object)
+    }
 
     var body: some View {
         DetailSection(title: "Metadata") {
@@ -16,11 +22,11 @@ struct EndpointsOverview: View {
                 }
                 DetailRow(label: "Ready", value: "\(readyCount)", valueColor: .green)
                 DetailRow(label: "Not Ready", value: "\(notReadyCount)")
-                DetailRow(label: "Addresses", value: "\(addressChips.count)", valueColor: .blue)
+                DetailRow(label: "Addresses", value: "\(entries.count)", valueColor: .blue)
             }
         }
 
-        if !addressChips.isEmpty {
+        if !entries.isEmpty {
             VStack(alignment: .leading, spacing: 8) {
                 HStack(spacing: 6) {
                     Text("Addresses")
@@ -28,7 +34,7 @@ struct EndpointsOverview: View {
                         .fontWeight(.semibold)
                         .foregroundStyle(.secondary)
                         .textCase(.uppercase)
-                    Text("\(addressChips.count)")
+                    Text("\(entries.count)")
                         .font(.caption2.weight(.semibold).monospacedDigit())
                         .foregroundStyle(.white)
                         .padding(.horizontal, 6)
@@ -37,8 +43,17 @@ struct EndpointsOverview: View {
                 }
 
                 FlowLayout(spacing: 6) {
-                    ForEach(Array(addressChips.enumerated()), id: \.offset) { _, chip in
-                        Chip(text: chip, tint: .blue)
+                    ForEach(entries) { entry in
+                        if let podName = entry.podName, let onSelectPod, let ns = namespace {
+                            Button {
+                                onSelectPod(.stub(name: podName, namespace: ns))
+                            } label: {
+                                Chip(text: podName, tint: entry.ready ? .blue : .orange)
+                            }
+                            .buttonStyle(.plain)
+                        } else {
+                            Chip(text: entry.display, tint: entry.ready ? .blue : .orange)
+                        }
                     }
                 }
                 .fixedSize(horizontal: false, vertical: true)
@@ -47,49 +62,11 @@ struct EndpointsOverview: View {
         }
     }
 
-    // MARK: - Derived from subsets
-
-    private var subsets: [JSONValue] {
-        object["subsets"]?.arrayValue ?? []
-    }
-
     private var readyCount: Int {
-        subsets.reduce(0) { $0 + ($1["addresses"]?.arrayValue?.count ?? 0) }
+        entries.filter(\.ready).count
     }
 
     private var notReadyCount: Int {
-        subsets.reduce(0) { $0 + ($1["notReadyAddresses"]?.arrayValue?.count ?? 0) }
-    }
-
-    /// Every ready `ip:port` across subsets. If a subset has no ports, emit the IP alone.
-    private var addressChips: [String] {
-        var result: [String] = []
-        for subset in subsets {
-            let ips = (subset["addresses"]?.arrayValue ?? [])
-                .compactMap { $0["ip"]?.stringValue }
-            let ports = (subset["ports"]?.arrayValue ?? [])
-                .compactMap { portNumber(from: $0) }
-
-            if ports.isEmpty {
-                result.append(contentsOf: ips)
-            } else {
-                for ip in ips {
-                    for port in ports {
-                        result.append("\(ip):\(port)")
-                    }
-                }
-            }
-        }
-        return result
-    }
-
-    private func portNumber(from port: JSONValue) -> String? {
-        guard let value = port["port"] else { return nil }
-        switch value {
-        case .int(let n): return String(n)
-        case .double(let n): return String(Int(n))
-        case .string(let s): return s
-        default: return value.displayString.isEmpty ? nil : value.displayString
-        }
+        entries.filter { !$0.ready }.count
     }
 }
