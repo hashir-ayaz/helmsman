@@ -109,10 +109,25 @@ actor KubeAPIClient {
         )
     }
 
-    func delete(ctx: String = "_current", ns: String, resource: String, name: String) async throws {
+    func delete(
+        ctx: String = "_current",
+        ns: String,
+        resource: String,
+        name: String,
+        gracePeriodSeconds: Int? = nil,
+        propagationPolicy: String? = nil
+    ) async throws {
+        var query: [URLQueryItem] = []
+        if let gracePeriodSeconds {
+            query.append(URLQueryItem(name: "gracePeriodSeconds", value: String(gracePeriodSeconds)))
+        }
+        if let propagationPolicy {
+            query.append(URLQueryItem(name: "propagationPolicy", value: propagationPolicy))
+        }
         let _: JSONValue = try await sendEnveloped(
             method: "DELETE",
-            path: objectPath(ctx: ctx, ns: ns, resource: resource, name: name)
+            path: objectPath(ctx: ctx, ns: ns, resource: resource, name: name),
+            query: query
         )
     }
 
@@ -188,6 +203,13 @@ actor KubeAPIClient {
         let _: JSONValue = try await sendEnveloped(
             method: "POST",
             path: "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/jobs/\(enc(name))/cancel"
+        )
+    }
+
+    func triggerCronJob(ctx: String = "_current", ns: String, name: String) async throws -> CreatedJobResponse {
+        try await sendEnveloped(
+            method: "POST",
+            path: "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/cronjobs/\(enc(name))/trigger"
         )
     }
 
@@ -397,9 +419,10 @@ actor KubeAPIClient {
         method: String,
         path: String,
         contentType: String? = nil,
-        body: Data? = nil
+        body: Data? = nil,
+        query: [URLQueryItem] = []
     ) async throws -> T {
-        guard let url = makeURL(path, query: []) else { throw APIError.invalidURL }
+        guard let url = makeURL(path, query: query) else { throw APIError.invalidURL }
         var request = URLRequest(url: url)
         request.httpMethod = method
         request.httpBody = body

@@ -6,6 +6,12 @@ struct APIResponse<T: Decodable>: Decodable {
     let error: String?
 }
 
+/// Response from POST .../cronjobs/{name}/trigger.
+struct CreatedJobResponse: Decodable, Sendable {
+    let name: String
+    let namespace: String
+}
+
 /// API failures mapped from HTTP status so the UI can react per category.
 enum APIError: LocalizedError, Equatable {
     case invalidURL

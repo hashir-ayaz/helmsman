@@ -164,6 +164,28 @@ func (h *ActionHandler) CancelJob(w http.ResponseWriter, r *http.Request) {
 	writeSuccess(w, map[string]string{"cancelled": r.PathValue("name")})
 }
 
+// TriggerCronJob godoc
+//
+//	@Summary	Create a one-off Job from a CronJob template (kubectl create job --from=cronjob)
+//	@Tags		actions
+//	@Produce	json
+//	@Router		/api/v1/contexts/{ctx}/namespaces/{ns}/cronjobs/{name}/trigger [post]
+func (h *ActionHandler) TriggerCronJob(w http.ResponseWriter, r *http.Request) {
+	b, err := bundleFor(h.provider, r)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	ns := r.PathValue("ns")
+	name := r.PathValue("name")
+	jobName, err := k8s.TriggerCronJob(r.Context(), b, ns, name)
+	if err != nil {
+		h.fail(w, err)
+		return
+	}
+	writeSuccess(w, map[string]string{"name": jobName, "namespace": ns})
+}
+
 type resizePVCRequest struct {
 	Storage string `json:"storage"`
 }

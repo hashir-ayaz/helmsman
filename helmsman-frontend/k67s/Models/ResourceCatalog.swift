@@ -64,6 +64,9 @@ struct ResourceType: Identifiable, Hashable, Sendable {
     /// True for CronJobs and Jobs, which support spec.suspend.
     var supportsSuspend: Bool { suspendWorkload != nil }
 
+    /// True for CronJobs — create a one-off Job from the CronJob template.
+    var supportsTriggerCronJob: Bool { resource == "cronjobs.batch" }
+
     /// True for Jobs — cancel suspends the job and deletes its active pods.
     var supportsCancel: Bool { resource == "jobs.batch" }
 

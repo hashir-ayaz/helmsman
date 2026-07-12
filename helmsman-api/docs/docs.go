@@ -49,6 +49,18 @@ const docTemplate = `{
                 }
             }
         },
+        "/api/v1/contexts/{ctx}/namespaces/{ns}/cronjobs/{name}/trigger": {
+            "post": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "actions"
+                ],
+                "summary": "Create a one-off Job from a CronJob template (kubectl create job --from=cronjob)",
+                "responses": {}
+            }
+        },
         "/api/v1/contexts/{ctx}/namespaces/{ns}/deployments/{name}/scale": {
             "post": {
                 "consumes": [
@@ -73,6 +85,21 @@ const docTemplate = `{
                     "actions"
                 ],
                 "summary": "Cancel a Job: suspend it and delete its running pods",
+                "responses": {}
+            }
+        },
+        "/api/v1/contexts/{ctx}/namespaces/{ns}/persistentvolumeclaims/{name}/resize": {
+            "post": {
+                "consumes": [
+                    "application/json"
+                ],
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "actions"
+                ],
+                "summary": "Resize a PersistentVolumeClaim (increase storage request)",
                 "responses": {}
             }
         },
@@ -401,6 +428,37 @@ const docTemplate = `{
                 "summary": "Get one resource as YAML",
                 "responses": {}
             }
+        },
+        "/api/v1/status": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "status"
+                ],
+                "summary": "Cluster readiness status",
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handler.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/cluster.Status"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    }
+                }
+            }
         }
     },
     "definitions": {
@@ -418,6 +476,20 @@ const docTemplate = `{
                 },
                 "namespace": {
                     "type": "string"
+                }
+            }
+        },
+        "cluster.Status": {
+            "type": "object",
+            "properties": {
+                "code": {
+                    "type": "string"
+                },
+                "message": {
+                    "type": "string"
+                },
+                "ready": {
+                    "type": "boolean"
                 }
             }
         },

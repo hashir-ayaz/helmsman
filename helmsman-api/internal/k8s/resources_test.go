@@ -37,7 +37,7 @@ func TestGetAndDelete(t *testing.T) {
 		t.Errorf("name = %q", obj.GetName())
 	}
 
-	if err := Delete(ctx, dyn, ref, "default", "cm-1"); err != nil {
+	if err := Delete(ctx, dyn, ref, "default", "cm-1", metav1.DeleteOptions{}); err != nil {
 		t.Fatalf("Delete: %v", err)
 	}
 	if _, err := dyn.Resource(cmGVR).Namespace("default").Get(ctx, "cm-1", metav1.GetOptions{}); err == nil {

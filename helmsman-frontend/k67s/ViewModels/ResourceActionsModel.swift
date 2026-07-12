@@ -17,6 +17,8 @@ final class ResourceActionsModel {
     var scaleTarget: TablePayload.Row?
     var restartTarget: TablePayload.Row?
     var deleteTarget: TablePayload.Row?
+    var forceDeleteTarget: TablePayload.Row?
+    var triggerTarget: TablePayload.Row?
     var rolloutHistoryTarget: RolloutHistoryTarget?
     var cancelTarget: TablePayload.Row?
     var drainTarget: TablePayload.Row?
@@ -110,6 +112,42 @@ final class ResourceActionsModel {
             )
         }
         deleteTarget = nil
+    }
+
+    func performForceDelete(_ row: TablePayload.Row?) async {
+        guard let row, let resource else { return }
+        let rowID = row.id
+        await run(mutatedRowID: rowID) {
+            try await KubeAPIClient.shared.delete(
+                ns: row.object.namespace ?? "",
+                resource: resource.resource,
+                name: row.object.name,
+                gracePeriodSeconds: 0
+            )
+        }
+        forceDeleteTarget = nil
+        if actionError == nil {
+            showActionToast("Force deleted \(row.object.name)")
+        }
+    }
+
+    func performTriggerCronJob(_ row: TablePayload.Row?) async {
+        guard let row else { return }
+        let ns = row.object.namespace ?? ""
+        let cronJobName = row.object.name
+        isBusy = true
+        actionError = nil
+        defer { isBusy = false }
+        do {
+            let created = try await KubeAPIClient.shared.triggerCronJob(ns: ns, name: cronJobName)
+            onMutated(nil)
+            showActionToast("Created Job \(created.name)")
+        } catch let apiError as APIError {
+            actionError = apiError
+        } catch {
+            actionError = .transport(error.localizedDescription)
+        }
+        triggerTarget = nil
     }
 
     func performRolloutPause(_ row: TablePayload.Row?) async {

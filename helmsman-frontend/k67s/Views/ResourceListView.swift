@@ -199,6 +199,7 @@ struct ResourceListView: View {
                 || resource.restartWorkload != nil
                 || resource.supportsPause
                 || resource.supportsSuspend
+                || resource.supportsTriggerCronJob
                 || resource.supportsDrain
 
             if hasWorkloadActions {
@@ -236,6 +237,10 @@ struct ResourceListView: View {
                     Button("Resume") { Task { await actions.performResume(row) } }
                 }
 
+                if resource.supportsTriggerCronJob {
+                    Button("Trigger Now…") { actions.triggerTarget = row }
+                }
+
                 if resource.supportsDrain {
                     Button("Drain…") { actions.drainTarget = row }
                 }
@@ -256,6 +261,7 @@ struct ResourceListView: View {
                 }
                 if canEditSingleObject {
                     Button("Delete", role: .destructive) { actions.deleteTarget = row }
+                    Button("Force Delete…", role: .destructive) { actions.forceDeleteTarget = row }
                 }
             }
         }

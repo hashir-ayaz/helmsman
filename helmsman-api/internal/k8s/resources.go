@@ -91,9 +91,9 @@ func YAML(ctx context.Context, dyn dynamic.Interface, ref ResourceRef, namespace
 	return out, nil
 }
 
-// Delete removes an object.
-func Delete(ctx context.Context, dyn dynamic.Interface, ref ResourceRef, namespace, name string) error {
-	if err := dynResource(dyn, ref, namespace).Delete(ctx, name, metav1.DeleteOptions{}); err != nil {
+// Delete removes an object with optional grace period and propagation policy.
+func Delete(ctx context.Context, dyn dynamic.Interface, ref ResourceRef, namespace, name string, opts metav1.DeleteOptions) error {
+	if err := dynResource(dyn, ref, namespace).Delete(ctx, name, opts); err != nil {
 		return fmt.Errorf("delete %s/%s: %w", ref.GVR.Resource, name, err)
 	}
 	return nil

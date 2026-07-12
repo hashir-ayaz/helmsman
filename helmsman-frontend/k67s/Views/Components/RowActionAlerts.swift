@@ -44,6 +44,28 @@ struct RowActionAlerts: ViewModifier {
                 Text("This resource will be permanently deleted.")
             }
 
+            // Force delete
+            .alert("Force delete \(actions.forceDeleteTarget?.object.name ?? "")?", isPresented: presented(\.forceDeleteTarget)) {
+                Button("Cancel", role: .cancel) { actions.forceDeleteTarget = nil }
+                Button("Force Delete", role: .destructive) {
+                    let row = actions.forceDeleteTarget
+                    Task { await actions.performForceDelete(row) }
+                }
+            } message: {
+                Text("Deletes immediately with grace period 0. Does not remove finalizers.")
+            }
+
+            // Trigger CronJob
+            .alert("Trigger \(actions.triggerTarget?.object.name ?? "")?", isPresented: presented(\.triggerTarget)) {
+                Button("Cancel", role: .cancel) { actions.triggerTarget = nil }
+                Button("Trigger Now") {
+                    let row = actions.triggerTarget
+                    Task { await actions.performTriggerCronJob(row) }
+                }
+            } message: {
+                Text("Creates a one-off Job from this CronJob's template.")
+            }
+
             // Cancel Job
             .alert("Cancel \(actions.cancelTarget?.object.name ?? "")?", isPresented: presented(\.cancelTarget)) {
                 Button("Cancel", role: .cancel) { actions.cancelTarget = nil }

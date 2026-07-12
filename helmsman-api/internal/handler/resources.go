@@ -4,10 +4,12 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"strconv"
 
 	"github.com/hashir-ayaz/helmsman/helmsman-api/internal/cluster"
 	"github.com/hashir-ayaz/helmsman/helmsman-api/internal/k8s"
 
+	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/apimachinery/pkg/types"
 )
@@ -124,12 +126,47 @@ func (h *ResourceHandler) Delete(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, msg)
 		return
 	}
-	if err := k8s.Delete(r.Context(), b.Dynamic, ref, r.PathValue("ns"), r.PathValue("name")); err != nil {
+	opts, err := parseDeleteOptions(r)
+	if err != nil {
+		writeError(w, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := k8s.Delete(r.Context(), b.Dynamic, ref, r.PathValue("ns"), r.PathValue("name"), opts); err != nil {
 		h.fail(w, err)
 		return
 	}
 	writeSuccess(w, map[string]string{"deleted": r.PathValue("name")})
 }
+
+func parseDeleteOptions(r *http.Request) (metav1.DeleteOptions, error) {
+	opts := metav1.DeleteOptions{}
+	q := r.URL.Query()
+	if gps := q.Get("gracePeriodSeconds"); gps != "" {
+		v, err := strconv.ParseInt(gps, 10, 64)
+		if err != nil {
+			return opts, err
+		}
+		opts.GracePeriodSeconds = &v
+	}
+	if pp := q.Get("propagationPolicy"); pp != "" {
+		switch pp {
+		case string(metav1.DeletePropagationForeground),
+			string(metav1.DeletePropagationBackground),
+			string(metav1.DeletePropagationOrphan):
+			policy := metav1.DeletionPropagation(pp)
+			opts.PropagationPolicy = &policy
+		default:
+			return opts, errInvalidPropagationPolicy
+		}
+	}
+	return opts, nil
+}
+
+var errInvalidPropagationPolicy = &deleteOptionsError{msg: "invalid propagationPolicy"}
+
+type deleteOptionsError struct{ msg string }
+
+func (e *deleteOptionsError) Error() string { return e.msg }
 
 // Patch godoc
 //
