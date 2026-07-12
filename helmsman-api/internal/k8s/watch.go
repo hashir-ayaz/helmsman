@@ -22,15 +22,22 @@ type WatchEvent struct {
 // Watch opens a K8s watch on the given resource and writes WatchEvent values to
 // the returned channel. It reconnects automatically when the API server closes
 // the watch. The channel is closed when ctx is cancelled.
-func Watch(ctx context.Context, b *cluster.ClientBundle, ref ResourceRef, namespace string) (<-chan WatchEvent, error) {
+func Watch(ctx context.Context, b *cluster.ClientBundle, ref ResourceRef, namespace string, opts ListOptions) (<-chan WatchEvent, error) {
 	ch := make(chan WatchEvent, 64)
 	go func() {
 		defer close(ch)
 		var resourceVersion string
 		for {
-			watcher, err := dynResource(b.Dynamic, ref, namespace).Watch(ctx, metav1.ListOptions{
+			listOpts := metav1.ListOptions{
 				ResourceVersion: resourceVersion,
-			})
+			}
+			if opts.LabelSelector != "" {
+				listOpts.LabelSelector = opts.LabelSelector
+			}
+			if opts.FieldSelector != "" {
+				listOpts.FieldSelector = opts.FieldSelector
+			}
+			watcher, err := dynResource(b.Dynamic, ref, namespace).Watch(ctx, listOpts)
 			if err != nil {
 				// Reconnect after back-off; avoids spinning on persistent errors.
 				if !backoff(ctx) {

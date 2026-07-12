@@ -38,7 +38,12 @@ func (h *WatchHandler) Stream(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ch, err := k8s.Watch(r.Context(), b, ref, ns)
+	opts := k8s.ListOptions{
+		LabelSelector: r.URL.Query().Get("labelSelector"),
+		FieldSelector: r.URL.Query().Get("fieldSelector"),
+	}
+
+	ch, err := k8s.Watch(r.Context(), b, ref, ns, opts)
 	if err != nil {
 		code, msg := statusFromK8sErr(err)
 		writeError(w, code, msg)

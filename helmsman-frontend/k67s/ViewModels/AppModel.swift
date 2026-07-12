@@ -31,7 +31,18 @@ final class AppModel {
     var selectedContext = "_current"
     var namespaces: [String] = []
     var selectedNamespace = AppModel.allNamespaces
-    var selectedDestination: SidebarDestination = .overview
+    var selectedDestination: SidebarDestination = .overview {
+        didSet {
+            guard case .resource(let resource) = selectedDestination,
+                  resource.resource == "pods" else {
+                podsListFilter = nil
+                return
+            }
+        }
+    }
+
+    /// Active label filter when navigated from a workload via "Show Pods".
+    var podsListFilter: PodsListFilter?
 
     var selectedResource: ResourceType? {
         if case .resource(let resource) = selectedDestination { return resource }
@@ -40,6 +51,26 @@ final class AppModel {
 
     func selectResource(_ resource: ResourceType) {
         selectedDestination = .resource(resource)
+    }
+
+    func clearPodsListFilter() {
+        podsListFilter = nil
+    }
+
+    /// Navigate to the Pods list with a server-side labelSelector filter.
+    func showPods(for resource: ResourceType, row: TablePayload.Row, matchLabels: [String: JSONValue]) {
+        guard let ns = row.object.namespace, !ns.isEmpty else { return }
+        let selector = K8s.labelSelector(from: matchLabels)
+        guard !selector.isEmpty else { return }
+        guard let pods = ResourceType.all.first(where: { $0.resource == "pods" }) else { return }
+
+        podsListFilter = PodsListFilter(
+            labelSelector: selector,
+            sourceTitle: "\(resource.title)/\(row.object.name)",
+            namespace: ns
+        )
+        selectedNamespace = ns
+        selectResource(pods)
     }
 
     /// `nil` means "all namespaces" (the cluster-scoped list path).
@@ -169,6 +200,7 @@ final class AppModel {
     }
 
     func contextDidChange() async {
+        podsListFilter = nil
         selectedNamespace = Self.allNamespaces
         await loadNamespaces()
     }

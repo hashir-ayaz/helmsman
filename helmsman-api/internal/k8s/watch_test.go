@@ -44,7 +44,7 @@ func TestWatch_deliversModifiedEvent(t *testing.T) {
 	defer cancel()
 
 	b := &cluster.ClientBundle{Dynamic: dynClient}
-	ch, err := Watch(ctx, b, podRef(), "default")
+	ch, err := Watch(ctx, b, podRef(), "default", ListOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -75,7 +75,7 @@ func TestWatch_closesChannelOnContextCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	b := &cluster.ClientBundle{Dynamic: dynClient}
 
-	ch, err := Watch(ctx, b, podRef(), "default")
+	ch, err := Watch(ctx, b, podRef(), "default", ListOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -98,7 +98,7 @@ func TestWatch_deliversAddedAndDeletedEvents(t *testing.T) {
 	defer cancel()
 
 	b := &cluster.ClientBundle{Dynamic: dynClient}
-	ch, err := Watch(ctx, b, podRef(), "default")
+	ch, err := Watch(ctx, b, podRef(), "default", ListOptions{})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -121,5 +121,31 @@ func TestWatch_deliversAddedAndDeletedEvents(t *testing.T) {
 	}
 	if types[0] != "ADDED" || types[1] != "DELETED" {
 		t.Errorf("want [ADDED DELETED], got %v", types)
+	}
+}
+
+func TestWatch_passesLabelSelector(t *testing.T) {
+	dynClient := dynamicfake.NewSimpleDynamicClient(runtime.NewScheme())
+	var gotSelector string
+	dynClient.PrependWatchReactor("*", func(action k8stesting.Action) (bool, watchpkg.Interface, error) {
+		if watch, ok := action.(k8stesting.WatchAction); ok {
+			gotSelector = watch.GetWatchRestrictions().Labels.String()
+		}
+		return true, watchpkg.NewFake(), nil
+	})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	b := &cluster.ClientBundle{Dynamic: dynClient}
+	ch, err := Watch(ctx, b, podRef(), "default", ListOptions{LabelSelector: "app=nginx"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	cancel()
+	<-ch
+
+	if gotSelector != "app=nginx" {
+		t.Errorf("want label selector app=nginx, got %q", gotSelector)
 	}
 }

@@ -10,6 +10,7 @@ final class ResourceListModel {
     var error: APIError?
     var searchText = ""
     var showWide = false
+    var labelSelector: String?
     private(set) var isWatching = false
     private var reloadWork: Task<Void, Never>?
     private var loadGeneration = 0
@@ -31,6 +32,7 @@ final class ResourceListModel {
         payload = nil
         error = nil
         isLoading = false
+        labelSelector = nil
     }
 
     var columns: [TablePayload.Column] {
@@ -116,7 +118,8 @@ final class ResourceListModel {
             let newPayload = try await KubeAPIClient.shared.listResources(
                 ctx: ctx,
                 ns: effectiveNS,
-                resource: resource.resource
+                resource: resource.resource,
+                labelSelector: labelSelector
             )
             willMutatePayload?()
             payload = newPayload
@@ -148,7 +151,8 @@ final class ResourceListModel {
             let stream = KubeAPIClient.shared.streamWatch(
                 ctx: ctx,
                 ns: effectiveNS,
-                resource: resource.resource
+                resource: resource.resource,
+                labelSelector: labelSelector
             )
             do {
                 for try await _ in stream {

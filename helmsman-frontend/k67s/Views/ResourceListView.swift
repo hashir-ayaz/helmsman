@@ -29,9 +29,10 @@ struct ResourceListView: View {
         ResourceType.all.first { $0.resource == "pods" }
     }
 
-    /// Reload whenever context, namespace, or resource changes.
+    /// Reload whenever context, namespace, resource, or pods filter changes.
     private var taskKey: String {
-        "\(app.selectedContext)|\(app.namespaceParam ?? "*")|\(resource.id)"
+        let filterKey = resource.isPods ? (app.podsListFilter?.labelSelector ?? "") : ""
+        return "\(app.selectedContext)|\(app.namespaceParam ?? "*")|\(resource.id)|\(filterKey)"
     }
 
     var body: some View {
@@ -61,6 +62,11 @@ struct ResourceListView: View {
         .task(id: taskKey) {
             actions.resource = resource
             model.willMutatePayload = { selectedRowID = nil }
+            if resource.isPods, let filter = app.podsListFilter {
+                model.labelSelector = filter.labelSelector
+            } else {
+                model.labelSelector = nil
+            }
             actions.onMutated = { mutatedRowID in
                 selectedRowID = nil
                 if mutatedRowID == inspectedRowID {
@@ -83,25 +89,33 @@ struct ResourceListView: View {
         }
     }
 
-    /// Prefer skeleton/error over a Table with zero columns — SwiftUI's
-    /// TableColumnForEach aborts when columns go empty↔N during diffs.
     @ViewBuilder
     private var listPane: some View {
-        if model.payload == nil {
-            if let error = model.error {
-                ErrorStateView(error: error) {
-                    Task { await reloadAndSyncSelection() }
+        VStack(spacing: 0) {
+            if resource.isPods, let filter = app.podsListFilter {
+                PodsListFilterBar(
+                    title: "Pods for \(filter.sourceTitle)",
+                    onClear: { app.clearPodsListFilter() }
+                )
+                Divider()
+            }
+
+            if model.payload == nil {
+                if let error = model.error {
+                    ErrorStateView(error: error) {
+                        Task { await reloadAndSyncSelection() }
+                    }
+                } else {
+                    ResourceListSkeleton(columnCount: 4)
                 }
             } else {
-                ResourceListSkeleton(columnCount: 4)
-            }
-        } else {
-            table
-                .overlay {
-                    if model.payload?.rows.isEmpty == true {
-                        ContentUnavailableView("No \(resource.title)", systemImage: resource.symbol)
+                table
+                    .overlay {
+                        if model.payload?.rows.isEmpty == true {
+                            ContentUnavailableView("No \(resource.title)", systemImage: resource.symbol)
+                        }
                     }
-                }
+            }
         }
     }
 
@@ -152,6 +166,12 @@ struct ResourceListView: View {
 
             // ── Inspect / Logs ──────────────────────────────────────────────
             Button("Inspect") { inspect(id) }
+
+            if resource.supportsRelatedPods {
+                Button("Show Pods") {
+                    Task { await showPodsForRow(row) }
+                }
+            }
 
             if resource.supportsLogs {
                 Button("Logs") { openLogs(row: row, previous: false) }
@@ -260,6 +280,27 @@ struct ResourceListView: View {
     private func backToParentWorkload() {
         guard let parent = detailFocus?.parent else { return }
         detailFocus = DetailFocus(resource: resource, row: parent, parent: nil)
+    }
+
+    private func showPodsForRow(_ row: TablePayload.Row) async {
+        do {
+            let object = try await KubeAPIClient.shared.getObject(
+                ctx: app.selectedContext,
+                ns: row.object.namespace,
+                resource: resource.resource,
+                name: row.object.name
+            )
+            guard let labels = object["spec"]?["selector"]?["matchLabels"]?.objectValue,
+                  !labels.isEmpty else {
+                actions.actionError = .transport("This workload has no pod selector.")
+                return
+            }
+            app.showPods(for: resource, row: row, matchLabels: labels)
+        } catch let apiError as APIError {
+            actions.actionError = apiError
+        } catch {
+            actions.actionError = .transport(error.localizedDescription)
+        }
     }
 
     private func openLogs(row: TablePayload.Row, previous: Bool) {

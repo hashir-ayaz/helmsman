@@ -277,7 +277,9 @@ actor KubeAPIClient {
     nonisolated func streamWatch(
         ctx: String = "_current",
         ns: String?,
-        resource: String
+        resource: String,
+        labelSelector: String? = nil,
+        fieldSelector: String? = nil
     ) -> AsyncThrowingStream<WatchEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
@@ -290,7 +292,21 @@ actor KubeAPIClient {
                 } else {
                     path = "/api/v1/contexts/\(enc(ctx))/resources/\(enc(resource))/watch"
                 }
-                guard let url = URL(string: Self.baseURL + path) else {
+                var query: [URLQueryItem] = []
+                if let labelSelector {
+                    query.append(URLQueryItem(name: "labelSelector", value: labelSelector))
+                }
+                if let fieldSelector {
+                    query.append(URLQueryItem(name: "fieldSelector", value: fieldSelector))
+                }
+                guard var components = URLComponents(string: Self.baseURL + path) else {
+                    continuation.finish(throwing: APIError.invalidURL)
+                    return
+                }
+                if !query.isEmpty {
+                    components.queryItems = query
+                }
+                guard let url = components.url else {
                     continuation.finish(throwing: APIError.invalidURL)
                     return
                 }
