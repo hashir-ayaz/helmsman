@@ -21,6 +21,7 @@ struct ResourceOverview: View {
         case "Deployment", "StatefulSet", "DaemonSet", "ReplicaSet":
             WorkloadOverview(object: object)
         case "Service": ServiceOverview(object: object)
+        case "Endpoints": EndpointsOverview(object: object)
         case "Job": JobOverview(object: object)
         case "CronJob": CronJobOverview(object: object)
         case "ConfigMap", "Secret": ConfigOverview(object: object)
