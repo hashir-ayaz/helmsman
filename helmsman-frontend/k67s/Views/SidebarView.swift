@@ -18,7 +18,7 @@ struct SidebarView: View {
                             HStack {
                                 Label(resource.title, systemImage: resource.symbol)
                                 Spacer(minLength: 8)
-                                if let count = app.sidebarCounts.counts[resource.resource] {
+                                if let count = app.sidebarCounts.counts[resource.resource], count >= 1 {
                                     Text("\(count)")
                                         .font(.caption.monospacedDigit())
                                         .foregroundStyle(.secondary)
