@@ -111,7 +111,7 @@ struct WorkloadOverview: View {
             }
         }
         .task(id: podsTaskKey) {
-            guard let onSelectPod,
+            guard onSelectPod != nil,
                   let ctx,
                   let effectiveNamespace,
                   !effectiveNamespace.isEmpty,

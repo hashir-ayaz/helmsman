@@ -299,7 +299,8 @@ enum K8s {
         }
         if let block = peer["ipBlock"]?.objectValue {
             var cidr = block["cidr"]?.stringValue ?? "?"
-            if let except = (block["except"]?.arrayValue ?? []).compactMap(\.stringValue), !except.isEmpty {
+            let except = (block["except"]?.arrayValue ?? []).compactMap(\.stringValue)
+            if !except.isEmpty {
                 cidr += " (except \(except.joined(separator: ", ")))"
             }
             lines.append("ipBlock: \(cidr)")

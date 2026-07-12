@@ -137,7 +137,7 @@ struct ServiceOverview: View {
             }
         }
         .task(id: podsTaskKey) {
-            guard let onSelectPod,
+            guard onSelectPod != nil,
                   let ctx,
                   let effectiveNamespace,
                   !effectiveNamespace.isEmpty,
@@ -206,7 +206,7 @@ struct ServiceOverview: View {
             }
         }
         .task(id: endpointsTaskKey) {
-            guard let onSelectEndpoints,
+            guard onSelectEndpoints != nil,
                   let ctx,
                   let effectiveNamespace,
                   !effectiveNamespace.isEmpty,
