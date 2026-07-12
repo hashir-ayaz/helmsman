@@ -72,6 +72,9 @@ struct ResourceType: Identifiable, Hashable, Sendable {
 
     /// True for PVCs — resize increases spec.resources.requests.storage.
     var supportsResize: Bool { resource == "persistentvolumeclaims" }
+
+    /// True for controller workloads that select pods via `spec.selector.matchLabels`.
+    var supportsRelatedPods: Bool { scaleWorkload != nil || restartWorkload != nil }
 }
 
 enum ResourceSection: String, CaseIterable, Hashable, Sendable {

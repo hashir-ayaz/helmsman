@@ -14,6 +14,8 @@ struct ResourceListView: View {
     @State private var selectedRowID: TablePayload.Row.ID?
     /// Detail pane identity — survives benign watch reloads while the row exists.
     @State private var inspectedRowID: TablePayload.Row.ID?
+    /// What the detail pane displays — may differ from the list when drilled into a related pod.
+    @State private var detailFocus: DetailFocus?
 
     private var isPods: Bool { resource.isPods }
     private var isEvents: Bool { resource.resource == "events" }
@@ -21,6 +23,10 @@ struct ResourceListView: View {
     private var inspectedRow: TablePayload.Row? {
         guard let id = inspectedRowID else { return nil }
         return model.payload?.rows.first { $0.id == id }
+    }
+
+    private var podsResource: ResourceType? {
+        ResourceType.all.first { $0.resource == "pods" }
     }
 
     /// Reload whenever context, namespace, or resource changes.
@@ -31,10 +37,20 @@ struct ResourceListView: View {
     var body: some View {
         HSplitView {
             listPane
-            if let row = inspectedRow {
-                ResourceDetailView(app: app, resource: resource, row: row)
-                    .id(row.id)
-                    .frame(minWidth: 320, idealWidth: 380, maxWidth: 480)
+            if let focus = detailFocus {
+                ResourceDetailView(
+                    app: app,
+                    resource: focus.resource,
+                    row: focus.row,
+                    parentRow: focus.parent,
+                    parentResourceTitle: focus.parent != nil ? resource.title : nil,
+                    onBack: focus.parent != nil ? { backToParentWorkload() } : nil,
+                    onSelectPod: focus.parent == nil && resource.supportsRelatedPods
+                        ? { drillToPod($0) }
+                        : nil
+                )
+                .id("\(focus.resource.id)/\(focus.row.id)")
+                .frame(minWidth: 320, idealWidth: 380, maxWidth: 480)
             }
         }
         .navigationTitle(resource.title)
@@ -49,12 +65,14 @@ struct ResourceListView: View {
                 selectedRowID = nil
                 if mutatedRowID == inspectedRowID {
                     inspectedRowID = nil
+                    detailFocus = nil
                 }
                 model.cancelPendingReload()
                 Task { await reloadAndSyncSelection() }
             }
             selectedRowID = nil
             inspectedRowID = nil
+            detailFocus = nil
             // Namespace/context change: clear payload without mounting an empty
             // TableColumnForEach (that AttributeGraph path crashes).
             if model.payload != nil {
@@ -113,6 +131,7 @@ struct ResourceListView: View {
             if let inspected = inspectedRowID {
                 if !ids.contains(inspected) {
                     inspectedRowID = nil
+                    detailFocus = nil
                 } else if selectedRowID == nil {
                     selectedRowID = inspected
                 }
@@ -225,6 +244,22 @@ struct ResourceListView: View {
     private func inspect(_ id: TablePayload.Row.ID?) {
         selectedRowID = id
         inspectedRowID = id
+        if let id, let row = model.payload?.rows.first(where: { $0.id == id }) {
+            detailFocus = DetailFocus(resource: resource, row: row, parent: nil)
+        } else {
+            detailFocus = nil
+        }
+    }
+
+    private func drillToPod(_ podRow: TablePayload.Row) {
+        guard let parentRow = inspectedRow,
+              let podsResource else { return }
+        detailFocus = DetailFocus(resource: podsResource, row: podRow, parent: parentRow)
+    }
+
+    private func backToParentWorkload() {
+        guard let parent = detailFocus?.parent else { return }
+        detailFocus = DetailFocus(resource: resource, row: parent, parent: nil)
     }
 
     private func openLogs(row: TablePayload.Row, previous: Bool) {
@@ -389,8 +424,13 @@ struct ResourceListView: View {
         guard let inspected = inspectedRowID else { return }
         if ids.contains(inspected) {
             selectedRowID = inspected
+            if detailFocus?.parent == nil,
+               let row = model.payload?.rows.first(where: { $0.id == inspected }) {
+                detailFocus = DetailFocus(resource: resource, row: row, parent: nil)
+            }
         } else {
             inspectedRowID = nil
+            detailFocus = nil
         }
     }
 }

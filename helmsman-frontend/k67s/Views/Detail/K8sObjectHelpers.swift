@@ -78,6 +78,13 @@ enum K8s {
         return value
     }
 
+    /// Kubernetes label selector string from `matchLabels`, e.g. `app=nginx,version=v1`.
+    static func labelSelector(from matchLabels: [String: JSONValue]) -> String {
+        matchLabels.keys.sorted().map { key in
+            "\(key)=\(matchLabels[key]?.displayString ?? "")"
+        }.joined(separator: ",")
+    }
+
     /// Controlling owner as "Kind/name", preferring the controller=true ref.
     static func controlledBy(_ object: JSONValue) -> String? {
         guard let refs = object["metadata"]?["ownerReferences"]?.arrayValue,

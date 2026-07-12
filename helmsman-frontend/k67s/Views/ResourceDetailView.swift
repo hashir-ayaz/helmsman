@@ -6,6 +6,10 @@ struct ResourceDetailView: View {
     @Bindable var app: AppModel
     let resource: ResourceType
     let row: TablePayload.Row
+    var parentRow: TablePayload.Row?
+    var parentResourceTitle: String?
+    var onBack: (() -> Void)?
+    var onSelectPod: ((TablePayload.Row) -> Void)?
 
     @State private var model = ResourceDetailModel()
     @State private var tab: Tab = .overview
@@ -72,6 +76,21 @@ struct ResourceDetailView: View {
 
     private var header: some View {
         VStack(alignment: .leading, spacing: 6) {
+            if let parentRow, let onBack, let parentResourceTitle {
+                Button(action: onBack) {
+                    Label {
+                        Text(parentRow.object.name)
+                            .lineLimit(1)
+                    } icon: {
+                        Image(systemName: "chevron.left")
+                    }
+                    .font(.caption)
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(.secondary)
+                .help("Back to \(parentResourceTitle)")
+            }
+
             HStack(spacing: 8) {
                 if let status = headerStatus {
                     StatusDot(status: status)
@@ -109,7 +128,10 @@ struct ResourceDetailView: View {
                     ResourceOverview(
                         object: object,
                         podEvents: model.events,
-                        isLoadingPodEvents: model.isLoadingEvents
+                        isLoadingPodEvents: model.isLoadingEvents,
+                        ctx: app.selectedContext,
+                        namespace: namespace,
+                        onSelectPod: parentRow == nil ? onSelectPod : nil
                     )
                 } else if let error = model.error {
                     Text(error.errorDescription ?? "Error")

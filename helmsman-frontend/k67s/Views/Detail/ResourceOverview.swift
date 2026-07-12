@@ -5,6 +5,9 @@ struct ResourceOverview: View {
     let object: JSONValue
     var podEvents: [ResourceDetailModel.PodRelatedEvent] = []
     var isLoadingPodEvents = false
+    var ctx: String?
+    var namespace: String?
+    var onSelectPod: ((TablePayload.Row) -> Void)?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -19,7 +22,12 @@ struct ResourceOverview: View {
         case "Pod":
             PodOverview(object: object, events: podEvents, isLoadingEvents: isLoadingPodEvents)
         case "Deployment", "StatefulSet", "DaemonSet", "ReplicaSet":
-            WorkloadOverview(object: object)
+            WorkloadOverview(
+                object: object,
+                ctx: ctx,
+                namespace: namespace,
+                onSelectPod: onSelectPod
+            )
         case "Service": ServiceOverview(object: object)
         case "Endpoints": EndpointsOverview(object: object)
         case "Job": JobOverview(object: object)

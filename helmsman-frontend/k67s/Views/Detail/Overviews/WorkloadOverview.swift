@@ -2,6 +2,24 @@ import SwiftUI
 
 struct WorkloadOverview: View {
     let object: JSONValue
+    var ctx: String?
+    var namespace: String?
+    var onSelectPod: ((TablePayload.Row) -> Void)?
+
+    @State private var podsModel = RelatedPodsModel()
+
+    private var matchLabels: [String: JSONValue]? {
+        object["spec"]?["selector"]?["matchLabels"]?.objectValue
+    }
+
+    private var podsTaskKey: String {
+        let labels = matchLabels?.keys.sorted().joined(separator: ",") ?? ""
+        return "\(ctx ?? "")|\(effectiveNamespace ?? "")|\(labels)"
+    }
+
+    private var effectiveNamespace: String? {
+        namespace ?? object["metadata"]?["namespace"]?.stringValue
+    }
 
     var body: some View {
         DetailSection(title: "Overview") {
@@ -26,7 +44,7 @@ struct WorkloadOverview: View {
             }
         }
 
-        if let selector = object["spec"]?["selector"]?["matchLabels"]?.objectValue, !selector.isEmpty {
+        if let selector = matchLabels, !selector.isEmpty {
             DetailSection(title: "Selector") { KeyValueChips(pairs: selector) }
         }
 
@@ -43,8 +61,66 @@ struct WorkloadOverview: View {
             }
         }
 
+        if onSelectPod != nil {
+            relatedPodsSection
+        }
+
         if let conditions = object["status"]?["conditions"]?.arrayValue, !conditions.isEmpty {
             DetailSection(title: "Conditions") { ConditionsList(conditions: conditions) }
+        }
+    }
+
+    @ViewBuilder private var relatedPodsSection: some View {
+        DetailSection(title: "Pods") {
+            Group {
+                if podsModel.isLoading {
+                    HStack(spacing: 8) {
+                        ProgressView().controlSize(.small)
+                        Text("Loading pods…")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                } else if let error = podsModel.error {
+                    Text(error.errorDescription ?? "Failed to load pods")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if matchLabels?.isEmpty != false {
+                    Text("No selector")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else if podsModel.rows.isEmpty {
+                    Text("No pods found")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } else {
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(podsModel.rows) { podRow in
+                            RelatedPodRow(
+                                name: podRow.object.name,
+                                status: podsModel.leadingStatus(for: podRow),
+                                summary: podsModel.trailingSummary(for: podRow)
+                            ) {
+                                onSelectPod?(podRow)
+                            }
+                            if podRow.id != podsModel.rows.last?.id {
+                                Divider()
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        .task(id: podsTaskKey) {
+            guard let onSelectPod,
+                  let ctx,
+                  let effectiveNamespace,
+                  !effectiveNamespace.isEmpty,
+                  let matchLabels,
+                  !matchLabels.isEmpty else {
+                podsModel.reset()
+                return
+            }
+            await podsModel.load(ctx: ctx, namespace: effectiveNamespace, matchLabels: matchLabels)
         }
     }
 
