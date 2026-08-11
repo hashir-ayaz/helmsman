@@ -65,6 +65,8 @@ final class ClusterOverviewModel {
     private(set) var isLoading = false
     private(set) var warningsError: String?
     private(set) var nodesError: String?
+    /// Set when fetches fail with a typed cluster connectivity error — UI shows one full-pane state.
+    private(set) var connectivityError: APIError?
 
     private static let maxWarnings = 20
 
@@ -76,6 +78,7 @@ final class ClusterOverviewModel {
         nodes = []
         warningsError = nil
         nodesError = nil
+        connectivityError = nil
         isLoading = false
     }
 
@@ -107,6 +110,24 @@ final class ClusterOverviewModel {
         let jobs = await jobsResult
         let cronJobs = await cronJobsResult
         let events = await eventsResult
+
+        let results: [Result<TablePayload, APIError>] = [
+            nodes, pods, namespaces, deployments, daemonSets, statefulSets, jobs, cronJobs, events,
+        ]
+        if let connectivity = results.compactMap({ result -> APIError? in
+            if case .failure(let error) = result, error.isClusterConnectivity { return error }
+            return nil
+        }).first {
+            connectivityError = connectivity
+            summaryCards = []
+            workloadBars = []
+            warningEvents = []
+            self.nodes = []
+            warningsError = nil
+            nodesError = nil
+            return
+        }
+        connectivityError = nil
 
         summaryCards = [
             makeSummaryCard(

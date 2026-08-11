@@ -1,9 +1,12 @@
 package cluster
 
 import (
+	"context"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
 const twoContextKubeconfig = `
@@ -84,6 +87,31 @@ func TestProviderMissingKubeconfig(t *testing.T) {
 	var nre *NotReadyError
 	if !errorsAsNotReady(err, &nre) {
 		t.Fatalf("Bundle error = %T %v, want *NotReadyError", err, err)
+	}
+	probe := p.Probe(context.Background(), "")
+	if probe.Ready || probe.Code != "kubeconfig_not_found" {
+		t.Errorf("Probe = %+v, want kubeconfig_not_found", probe)
+	}
+}
+
+func TestProviderProbeUnreachable(t *testing.T) {
+	p := NewProvider(writeKubeconfig(t))
+	st := p.Status()
+	if !st.Ready {
+		t.Fatalf("Status() = %+v, want ready (cheap check)", st)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	probe := p.Probe(ctx, "")
+	if probe.Ready {
+		t.Fatal("expected probe to fail against unreachable example host")
+	}
+	if probe.Code != CodeClusterUnreachable && probe.Code != CodeClusterTimeout {
+		t.Errorf("Probe.Code = %q, want unreachable or timeout", probe.Code)
+	}
+	if probe.Message == "" || strings.Contains(probe.Message, "dial tcp") {
+		t.Errorf("Probe.Message = %q, want friendly copy", probe.Message)
 	}
 }
 

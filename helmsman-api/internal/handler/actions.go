@@ -13,8 +13,7 @@ import (
 type ActionHandler struct{ provider cluster.Provider }
 
 func (h *ActionHandler) fail(w http.ResponseWriter, err error) {
-	code, msg := statusFromK8sErr(err)
-	writeError(w, code, msg)
+	writeMappedError(w, err)
 }
 
 type scaleRequest struct {

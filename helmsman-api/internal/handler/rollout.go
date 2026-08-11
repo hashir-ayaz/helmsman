@@ -19,20 +19,17 @@ type RolloutHandler struct{ provider cluster.Provider }
 func (h *RolloutHandler) History(w http.ResponseWriter, r *http.Request) {
 	b, err := bundleFor(h.provider, r)
 	if err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 	ref, err := resolveRef(b, r.PathValue("workload"))
 	if err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 	entries, err := k8s.RolloutHistory(r.Context(), b.Dynamic, ref, r.PathValue("ns"), r.PathValue("name"))
 	if err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 	writeSuccess(w, entries)
@@ -52,22 +49,19 @@ type undoRequest struct {
 func (h *RolloutHandler) Undo(w http.ResponseWriter, r *http.Request) {
 	b, err := bundleFor(h.provider, r)
 	if err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 	ref, err := resolveRef(b, r.PathValue("workload"))
 	if err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 	var body undoRequest
 	_ = json.NewDecoder(r.Body).Decode(&body)
 
 	if err := k8s.RolloutUndo(r.Context(), b.Dynamic, ref, r.PathValue("ns"), r.PathValue("name"), body.ToRevision); err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 	writeSuccess(w, map[string]any{"rolled_back": r.PathValue("name"), "toRevision": body.ToRevision})
@@ -82,19 +76,16 @@ func (h *RolloutHandler) Undo(w http.ResponseWriter, r *http.Request) {
 func (h *RolloutHandler) Pause(w http.ResponseWriter, r *http.Request) {
 	b, err := bundleFor(h.provider, r)
 	if err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 	ref, err := resolveRef(b, r.PathValue("workload"))
 	if err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 	if err := k8s.RolloutPause(r.Context(), b.Dynamic, ref, r.PathValue("ns"), r.PathValue("name")); err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 	writeSuccess(w, map[string]string{"paused": r.PathValue("name")})
@@ -109,19 +100,16 @@ func (h *RolloutHandler) Pause(w http.ResponseWriter, r *http.Request) {
 func (h *RolloutHandler) Resume(w http.ResponseWriter, r *http.Request) {
 	b, err := bundleFor(h.provider, r)
 	if err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 	ref, err := resolveRef(b, r.PathValue("workload"))
 	if err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 	if err := k8s.RolloutResume(r.Context(), b.Dynamic, ref, r.PathValue("ns"), r.PathValue("name")); err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 	writeSuccess(w, map[string]string{"resumed": r.PathValue("name")})

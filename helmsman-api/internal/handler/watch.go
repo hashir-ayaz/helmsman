@@ -27,8 +27,7 @@ func (h *WatchHandler) Stream(w http.ResponseWriter, r *http.Request) {
 
 	b, ref, err := bundleAndRef(h.provider, r)
 	if err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 
@@ -45,8 +44,7 @@ func (h *WatchHandler) Stream(w http.ResponseWriter, r *http.Request) {
 
 	ch, err := k8s.Watch(r.Context(), b, ref, ns, opts)
 	if err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 

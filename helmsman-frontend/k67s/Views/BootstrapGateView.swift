@@ -121,7 +121,7 @@ struct BootstrapGateView: View {
         case .startingBackend:
             "Starting local backend…"
         case .checkingCluster:
-            "Reading kubeconfig…"
+            "Connecting to cluster…"
         case .loadingContexts:
             "Loading contexts…"
         }
@@ -139,6 +139,10 @@ struct BootstrapGateView: View {
             "Add a cluster context to your kubeconfig, then try again."
         case "backend_unreachable":
             "If you're developing locally, run make run in helmsman-api and try again."
+        case "cluster_unreachable":
+            "Your kubeconfig looks fine, but the API server isn’t responding. Start the cluster (Docker Desktop, kind, minikube, etc.) and tap Retry."
+        case "cluster_timeout":
+            "Check your network or VPN, or whether the API server is overloaded, then tap Retry."
         default:
             nil
         }

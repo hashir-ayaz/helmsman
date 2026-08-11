@@ -455,7 +455,9 @@ actor KubeAPIClient {
         try checkStatus(response, data: data)
         do {
             let envelope = try decoder.decode(APIResponse<T>.self, from: data)
-            if let message = envelope.error { throw APIError.server(message) }
+            if let message = envelope.error {
+                throw APIError.from(status: 500, message: message, code: envelope.code)
+            }
             guard let value = envelope.data else { throw APIError.invalidResponse }
             return value
         } catch let error as APIError {
@@ -488,7 +490,9 @@ actor KubeAPIClient {
         try checkStatus(response, data: data)
         do {
             let envelope = try decoder.decode(APIResponse<T>.self, from: data)
-            if let message = envelope.error { throw APIError.server(message) }
+            if let message = envelope.error {
+                throw APIError.from(status: 500, message: message, code: envelope.code)
+            }
             guard let value = envelope.data else { throw APIError.invalidResponse }
             return value
         } catch let error as APIError {
@@ -498,13 +502,12 @@ actor KubeAPIClient {
         }
     }
 
-    /// Throws a mapped `APIError` for any non-2xx status, extracting the envelope
-    /// `error` message when present.
     private func checkStatus(_ response: URLResponse, data: Data) throws {
         guard let http = response as? HTTPURLResponse else { throw APIError.invalidResponse }
         guard !(200...299).contains(http.statusCode) else { return }
-        let message = (try? decoder.decode(APIResponse<JSONValue>.self, from: data))?.error
+        let envelope = try? decoder.decode(APIResponse<JSONValue>.self, from: data)
+        let message = envelope?.error
             ?? String(decoding: data, as: UTF8.self)
-        throw APIError.from(status: http.statusCode, message: message)
+        throw APIError.from(status: http.statusCode, message: message, code: envelope?.code)
     }
 }

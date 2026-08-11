@@ -17,8 +17,7 @@ import (
 type ResourceHandler struct{ provider cluster.Provider }
 
 func (h *ResourceHandler) fail(w http.ResponseWriter, err error) {
-	code, msg := statusFromK8sErr(err)
-	writeError(w, code, msg)
+	writeMappedError(w, err)
 }
 
 // List godoc

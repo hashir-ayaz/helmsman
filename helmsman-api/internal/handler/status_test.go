@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -19,6 +20,9 @@ func (s *statusProvider) Bundle(string) (*cluster.ClientBundle, error) {
 	return nil, &cluster.NotReadyError{Status: s.status}
 }
 func (s *statusProvider) Status() cluster.Status { return s.status }
+func (s *statusProvider) Probe(context.Context, string) cluster.Status {
+	return s.status
+}
 
 func TestStatusEndpointReady(t *testing.T) {
 	h := New(newFakeProvider())
@@ -86,5 +90,53 @@ func TestContextsEndpointNotReady(t *testing.T) {
 
 	if rec.Code != http.StatusServiceUnavailable {
 		t.Fatalf("code = %d, want 503", rec.Code)
+	}
+	var resp APIResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	if resp.Code != "kubeconfig_not_found" {
+		t.Errorf("envelope code = %q, want kubeconfig_not_found", resp.Code)
+	}
+}
+
+type probeFailProvider struct {
+	statusProvider
+	probe cluster.Status
+}
+
+func (p *probeFailProvider) Probe(context.Context, string) cluster.Status {
+	return p.probe
+}
+
+func TestStatusEndpointProbeUnreachable(t *testing.T) {
+	p := &probeFailProvider{
+		statusProvider: statusProvider{
+			status: cluster.Status{Ready: true, Code: "ready"},
+		},
+		probe: cluster.Status{
+			Ready:   false,
+			Code:    cluster.CodeClusterUnreachable,
+			Message: "Could not reach the cluster API server. Check that the cluster is running.",
+		},
+	}
+	h := New(p)
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/status", nil)
+	rec := httptest.NewRecorder()
+	h.Status.Get(rec, req)
+
+	if rec.Code != http.StatusOK {
+		t.Fatalf("code = %d", rec.Code)
+	}
+	var resp APIResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &resp); err != nil {
+		t.Fatal(err)
+	}
+	data := resp.Data.(map[string]any)
+	if ready, _ := data["ready"].(bool); ready {
+		t.Error("expected not ready after probe")
+	}
+	if data["code"] != cluster.CodeClusterUnreachable {
+		t.Errorf("code = %v", data["code"])
 	}
 }

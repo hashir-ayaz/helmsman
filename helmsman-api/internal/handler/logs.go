@@ -25,8 +25,7 @@ func (h *LogHandler) Stream(w http.ResponseWriter, r *http.Request) {
 	}
 	b, err := bundleFor(h.provider, r)
 	if err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 
@@ -43,8 +42,7 @@ func (h *LogHandler) Stream(w http.ResponseWriter, r *http.Request) {
 
 	stream, err := k8s.OpenLogStream(r.Context(), b, r.PathValue("ns"), r.PathValue("name"), opts)
 	if err != nil {
-		code, msg := statusFromK8sErr(err)
-		writeError(w, code, msg)
+		writeMappedError(w, err)
 		return
 	}
 	defer stream.Close()

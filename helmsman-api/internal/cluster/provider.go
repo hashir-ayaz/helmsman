@@ -3,11 +3,13 @@
 package cluster
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"k8s.io/apimachinery/pkg/api/meta"
 	"k8s.io/client-go/discovery"
@@ -18,6 +20,9 @@ import (
 	"k8s.io/client-go/restmapper"
 	"k8s.io/client-go/tools/clientcmd"
 )
+
+// probeTimeout caps the live API-server dial used by Probe.
+const probeTimeout = 3 * time.Second
 
 // Status describes whether the cluster provider is ready to serve requests.
 type Status struct {
@@ -69,6 +74,9 @@ type Provider interface {
 	Current() string
 	Bundle(contextName string) (*ClientBundle, error)
 	Status() Status
+	// Probe dials the API server for the given context (empty = current) with a
+	// short timeout. Status() stays cheap (kubeconfig only); Probe is for boot.
+	Probe(ctx context.Context, contextName string) Status
 }
 
 type kubeProvider struct {
@@ -91,6 +99,9 @@ func (p *unavailableProvider) Bundle(string) (*ClientBundle, error) {
 	return nil, &NotReadyError{Status: p.status}
 }
 func (p *unavailableProvider) Status() Status { return p.status }
+func (p *unavailableProvider) Probe(context.Context, string) Status {
+	return p.status
+}
 
 // NewProvider loads the kubeconfig at path (honouring $KUBECONFIG merge rules
 // when path is empty) and prepares lazy per-context bundles. On load failure it
@@ -171,6 +182,52 @@ func (p *kubeProvider) Contexts() []ContextInfo { return p.infos }
 func (p *kubeProvider) Current() string         { return p.current }
 func (p *kubeProvider) Status() Status {
 	return Status{Ready: true, Code: "ready"}
+}
+
+// Probe dials ServerVersion with a short-lived client so a down cluster is
+// reported at boot without changing the cheap Status() used by every request.
+func (p *kubeProvider) Probe(ctx context.Context, contextName string) Status {
+	if contextName == "" {
+		contextName = p.current
+	}
+
+	restCfg, err := p.restConfig(contextName)
+	if err != nil {
+		return StatusFromConnectivity(err)
+	}
+	cfg := rest.CopyConfig(restCfg)
+	cfg.Timeout = probeTimeout
+
+	typed, err := kubernetes.NewForConfig(cfg)
+	if err != nil {
+		return StatusFromConnectivity(err)
+	}
+
+	type probeResult struct{ err error }
+	ch := make(chan probeResult, 1)
+	go func() {
+		_, err := typed.Discovery().ServerVersion()
+		ch <- probeResult{err}
+	}()
+
+	timer := time.NewTimer(probeTimeout)
+	defer timer.Stop()
+
+	select {
+	case <-ctx.Done():
+		return StatusFromConnectivity(ctx.Err())
+	case <-timer.C:
+		return Status{
+			Ready:   false,
+			Code:    CodeClusterTimeout,
+			Message: msgClusterTimeout,
+		}
+	case r := <-ch:
+		if r.err != nil {
+			return StatusFromConnectivity(r.err)
+		}
+		return Status{Ready: true, Code: "ready"}
+	}
 }
 
 func (p *kubeProvider) Bundle(contextName string) (*ClientBundle, error) {

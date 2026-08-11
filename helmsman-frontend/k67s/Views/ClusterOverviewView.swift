@@ -9,21 +9,29 @@ struct ClusterOverviewView: View {
     private var taskKey: String { app.selectedContext }
 
     var body: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                summaryCards
-                workloadBars
-                bottomPanels
+        Group {
+            if let error = model.connectivityError {
+                ErrorStateView(error: error) {
+                    Task { await model.load(ctx: app.selectedContext) }
+                }
+            } else {
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 20) {
+                        summaryCards
+                        workloadBars
+                        bottomPanels
+                    }
+                    .padding(16)
+                }
+                .contentAppear()
             }
-            .padding(16)
         }
-        .contentAppear()
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .navigationTitle("Cluster Overview")
         .scopePickerToolbar(app: app)
         .toolbar { toolbarContent }
         .overlay {
-            if model.isLoading && model.summaryCards.isEmpty {
+            if model.isLoading && model.summaryCards.isEmpty && model.connectivityError == nil {
                 ClusterOverviewSkeleton()
             }
         }

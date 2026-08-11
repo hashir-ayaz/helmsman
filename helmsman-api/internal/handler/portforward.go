@@ -15,8 +15,7 @@ type PortForwardHandler struct {
 }
 
 func (h *PortForwardHandler) fail(w http.ResponseWriter, err error) {
-	code, msg := statusFromK8sErr(err)
-	writeError(w, code, msg)
+	writeMappedError(w, err)
 }
 
 func (h *PortForwardHandler) contextName(r *http.Request) string {
@@ -79,6 +78,10 @@ func (h *PortForwardHandler) start(w http.ResponseWriter, r *http.Request, kind 
 
 func (h *PortForwardHandler) failPlain(w http.ResponseWriter, err error) {
 	if _, ok := err.(*cluster.NotReadyError); ok {
+		h.fail(w, err)
+		return
+	}
+	if _, _, ok := cluster.ClassifyConnectivity(err); ok {
 		h.fail(w, err)
 		return
 	}

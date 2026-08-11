@@ -232,14 +232,6 @@ final class AppModel {
         return false
     }
 
-    private func setFailed(from error: APIError) {
-        connectionPhase = .failed(
-            title: "Connection Failed",
-            message: error.errorDescription ?? "There was an error connecting to your cluster.",
-            code: nil
-        )
-    }
-
     private static func title(for code: String) -> String {
         switch code {
         case "no_network": "You're Offline 📶"
@@ -247,7 +239,18 @@ final class AppModel {
         case "kubeconfig_invalid": "Invalid Kubeconfig"
         case "no_contexts": "No Contexts Configured"
         case "backend_unreachable": "Connection Failed"
+        case "cluster_unreachable": "Can’t Reach Cluster"
+        case "cluster_timeout": "Cluster Timed Out"
         default: "Connection Failed"
         }
+    }
+
+    private func setFailed(from error: APIError) {
+        let code = error.code
+        connectionPhase = .failed(
+            title: code.map(Self.title(for:)) ?? error.displayTitle,
+            message: error.errorDescription ?? "There was an error connecting to your cluster.",
+            code: code
+        )
     }
 }

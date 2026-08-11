@@ -17,7 +17,7 @@ type ContextHandler struct{ provider cluster.Provider }
 //	@Router		/api/v1/contexts [get]
 func (h *ContextHandler) List(w http.ResponseWriter, _ *http.Request) {
 	if st := h.provider.Status(); !st.Ready {
-		writeError(w, http.StatusServiceUnavailable, st.Message)
+		writeErrorCode(w, http.StatusServiceUnavailable, st.Code, st.Message)
 		return
 	}
 	writeSuccess(w, h.provider.Contexts())
