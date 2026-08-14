@@ -45,6 +45,16 @@ struct ResourceListView: View {
         return "\(app.selectedContext)|\(app.namespaceParam ?? "*")|\(resource.id)|\(filterKey)"
     }
 
+    private var emptyDescription: String {
+        if resource.scope == .namespaced, app.namespaceParam != nil {
+            return "Nothing in this namespace. Switch namespace, or create one to see it here."
+        }
+        if resource.scope == .namespaced {
+            return "No \(resource.title.lowercased()) across visible namespaces."
+        }
+        return "No \(resource.title.lowercased()) in this cluster context."
+    }
+
     var body: some View {
         HSplitView {
             listPane
@@ -139,7 +149,11 @@ struct ResourceListView: View {
                 table
                     .overlay {
                         if model.payload?.rows.isEmpty == true {
-                            ContentUnavailableView("No \(resource.title)", systemImage: resource.symbol)
+                            ContentUnavailableView {
+                                Label("No \(resource.title)", systemImage: resource.symbol)
+                            } description: {
+                                Text(emptyDescription)
+                            }
                         }
                     }
             }

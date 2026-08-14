@@ -27,11 +27,19 @@ final class ResourceDetailModel {
             object = try await KubeAPIClient.shared.getObject(
                 ctx: ctx, ns: ns, resource: resource.resource, name: name
             )
+            error = nil
         } catch let apiError as APIError {
             error = apiError
         } catch {
             self.error = .transport(error.localizedDescription)
         }
+    }
+
+    /// Clears cached object so a failed load can be retried.
+    func reloadObject(ctx: String, ns: String?, resource: ResourceType, name: String) async {
+        object = nil
+        error = nil
+        await loadObject(ctx: ctx, ns: ns, resource: resource, name: name)
     }
 
     func loadYAML(ctx: String, ns: String?, resource: ResourceType, name: String) async {
@@ -42,11 +50,19 @@ final class ResourceDetailModel {
             yaml = try await KubeAPIClient.shared.getYAML(
                 ctx: ctx, ns: ns, resource: resource.resource, name: name
             )
+            error = nil
         } catch let apiError as APIError {
             error = apiError
         } catch {
             self.error = .transport(error.localizedDescription)
         }
+    }
+
+    /// Clears cached YAML so a failed load can be retried.
+    func reloadYAML(ctx: String, ns: String?, resource: ResourceType, name: String) async {
+        yaml = nil
+        error = nil
+        await loadYAML(ctx: ctx, ns: ns, resource: resource, name: name)
     }
 
     func loadEvents(ctx: String, ns: String?, kind: String, name: String) async {

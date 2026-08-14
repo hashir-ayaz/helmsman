@@ -9,30 +9,42 @@ struct ErrorStateView: View {
 
     var body: some View {
         ContentUnavailableView {
-            Label(error.displayTitle, systemImage: symbolName)
+            Label {
+                Text(error.displayTitle)
+            } icon: {
+                Image(systemName: symbolName)
+                    .foregroundStyle(symbolColor)
+                    .symbolRenderingMode(.hierarchical)
+            }
         } description: {
-            VStack(spacing: 8) {
+            VStack(spacing: 12) {
                 Text(error.errorDescription ?? "Unknown error")
+                    .multilineTextAlignment(.center)
                 if let tip = error.displayTip {
-                    Text(tip)
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                        .multilineTextAlignment(.center)
-                        .padding(.horizontal, 12)
-                        .padding(.vertical, 10)
-                        .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+                    TipCallout(text: tip)
                 }
             }
         } actions: {
             if !error.isRBAC {
                 Button("Retry", action: retry)
+                    .buttonStyle(.borderedProminent)
+                    .tint(HelmsmanBrand.amber)
+                    .keyboardShortcut(.defaultAction)
             }
         }
+        .frame(maxWidth: 520)
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
 
     private var symbolName: String {
         if error.isRBAC { return "lock.shield" }
         if error.isClusterConnectivity { return "antenna.radiowaves.left.and.right.slash" }
         return "exclamationmark.triangle"
+    }
+
+    private var symbolColor: Color {
+        if error.isRBAC { return .secondary }
+        if error.isClusterConnectivity { return HelmsmanBrand.warning }
+        return HelmsmanBrand.warning
     }
 }

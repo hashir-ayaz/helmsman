@@ -81,9 +81,16 @@ struct WorkloadOverview: View {
                             .foregroundStyle(.secondary)
                     }
                 } else if let error = podsModel.error {
-                    Text(error.errorDescription ?? "Failed to load pods")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    InlineErrorBanner(
+                        message: error.errorDescription ?? "Failed to load pods",
+                        tip: error.displayTip,
+                        retry: error.isRBAC ? nil : {
+                            Task {
+                                guard let ctx, let ns = effectiveNamespace, let matchLabels else { return }
+                                await podsModel.load(ctx: ctx, namespace: ns, matchLabels: matchLabels)
+                            }
+                        }
+                    )
                 } else if matchLabels?.isEmpty != false {
                     Text("No selector")
                         .font(.caption)

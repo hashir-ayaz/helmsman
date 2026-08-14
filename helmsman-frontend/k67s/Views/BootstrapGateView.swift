@@ -59,6 +59,7 @@ struct BootstrapGateView: View {
             }
             ProgressView()
                 .controlSize(.small)
+                .tint(HelmsmanBrand.amber)
                 .padding(.top, 4)
         }
         .padding(32)
@@ -66,12 +67,12 @@ struct BootstrapGateView: View {
 
     private func failedContent(title: String, message: String, code: String?) -> some View {
         VStack(spacing: 20) {
-            appIcon
+            failureGlyph
             VStack(spacing: 8) {
                 Text("Helmsman")
-                    .font(.system(size: 28, weight: .semibold, design: .rounded))
+                    .font(.system(size: 32, weight: .semibold, design: .rounded))
                 Text(title)
-                    .font(.title3.weight(.medium))
+                    .font(.title3.weight(.semibold))
                 Text(message)
                     .font(.body)
                     .foregroundStyle(.secondary)
@@ -79,22 +80,30 @@ struct BootstrapGateView: View {
                     .frame(maxWidth: 420)
             }
             if let tip = failureTip(for: code) {
-                Text(tip)
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 420)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 10)
-                    .background(.quaternary.opacity(0.5), in: RoundedRectangle(cornerRadius: 8))
+                TipCallout(text: tip)
             }
             if let onRetry {
                 Button("Retry", action: onRetry)
+                    .buttonStyle(.borderedProminent)
+                    .tint(HelmsmanBrand.amber)
                     .keyboardShortcut(.defaultAction)
                     .controlSize(.large)
             }
         }
         .padding(32)
+    }
+
+    private var failureGlyph: some View {
+        ZStack {
+            Circle()
+                .fill(HelmsmanBrand.warning.opacity(0.14))
+                .frame(width: 72, height: 72)
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 28, weight: .semibold))
+                .foregroundStyle(HelmsmanBrand.warning)
+                .symbolRenderingMode(.hierarchical)
+        }
+        .accessibilityHidden(true)
     }
 
     private var appIcon: some View {
@@ -106,7 +115,7 @@ struct BootstrapGateView: View {
             } else {
                 Image(systemName: "helm")
                     .font(.system(size: 56))
-                    .foregroundStyle(.tint)
+                    .foregroundStyle(HelmsmanBrand.amber)
                     .symbolRenderingMode(.hierarchical)
             }
         }

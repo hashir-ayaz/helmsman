@@ -68,7 +68,7 @@ struct OnboardingFooter: View {
                 Text("↵")
                     .font(.system(size: 15, weight: .medium))
             }
-            .foregroundStyle(.white)
+            .foregroundStyle(OnboardingStyle.title)
             .padding(.horizontal, 22)
             .padding(.vertical, 11)
             .background(OnboardingStyle.accent, in: Capsule())

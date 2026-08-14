@@ -17,17 +17,15 @@ struct YAMLEditorWindow: View {
             header(model: model)
             Divider()
             if let error = model.error {
-                statusBanner(
+                StatusBanner(
                     message: error.errorDescription ?? "Apply failed.",
-                    symbol: "exclamationmark.triangle.fill",
-                    tint: .orange
+                    kind: .error
                 )
                 Divider()
             } else if model.applied {
-                statusBanner(
+                StatusBanner(
                     message: "Changes applied successfully.",
-                    symbol: "checkmark.circle.fill",
-                    tint: .green
+                    kind: .success
                 )
                 Divider()
             }
@@ -81,20 +79,5 @@ struct YAMLEditorWindow: View {
             }
         }
         .padding(10)
-    }
-
-    private func statusBanner(message: String, symbol: String, tint: Color) -> some View {
-        HStack(alignment: .top, spacing: 8) {
-            Image(systemName: symbol)
-                .foregroundStyle(tint)
-                .padding(.top, 2)
-            Text(message)
-                .font(.callout)
-                .textSelection(.enabled)
-                .frame(maxWidth: .infinity, alignment: .leading)
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
-        .background(tint.opacity(0.14))
     }
 }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// Split benefit page: left copy (vertically centered), right video placeholder.
+/// Split benefit page: left copy (vertically centered), right looping video.
 struct OnboardingSplitPage: View {
     let step: OnboardingStep
 
@@ -27,7 +27,9 @@ struct OnboardingSplitPage: View {
                 .frame(width: copyWidth, alignment: .leading)
                 .padding(.leading, OnboardingStyle.horizontalPadding)
 
-                OnboardingMediaPlaceholder()
+                OnboardingMediaPlaceholder(videoName: step.videoName, mediaLabel: step.headline)
+                    .aspectRatio(OnboardingStyle.mediaAspectRatio, contentMode: .fit)
+                    .frame(maxWidth: .infinity)
                     .padding(.trailing, OnboardingStyle.horizontalPadding)
                     .padding(.vertical, OnboardingStyle.mediaVerticalPadding)
             }

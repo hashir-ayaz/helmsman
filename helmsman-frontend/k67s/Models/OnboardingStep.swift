@@ -17,6 +17,8 @@ struct OnboardingStep: Identifiable, Equatable, Sendable {
     let ctaTitle: String
     /// Skip appears only on the welcome step.
     let showsSkip: Bool
+    /// Bundled looping mp4 (no extension) for split pages. Nil keeps the placeholder.
+    let videoName: String?
 
     static let all: [OnboardingStep] = [
         OnboardingStep(
@@ -26,7 +28,8 @@ struct OnboardingStep: Identifiable, Equatable, Sendable {
             subhead: "Let's set you up with a faster way to work Kubernetes on Mac.",
             showsCheckmark: false,
             ctaTitle: "Continue",
-            showsSkip: true
+            showsSkip: true,
+            videoName: nil
         ),
         OnboardingStep(
             id: "browse",
@@ -35,7 +38,8 @@ struct OnboardingStep: Identifiable, Equatable, Sendable {
             subhead: "Pods, Deployments, CRDs — kubectl-identical columns from your kubeconfig.",
             showsCheckmark: false,
             ctaTitle: "Continue",
-            showsSkip: false
+            showsSkip: false,
+            videoName: "browse"
         ),
         OnboardingStep(
             id: "live",
@@ -44,7 +48,8 @@ struct OnboardingStep: Identifiable, Equatable, Sendable {
             subhead: "Live watch streams keep every table current — no refresh.",
             showsCheckmark: false,
             ctaTitle: "Continue",
-            showsSkip: false
+            showsSkip: false,
+            videoName: "live"
         ),
         OnboardingStep(
             id: "inspect",
@@ -53,7 +58,8 @@ struct OnboardingStep: Identifiable, Equatable, Sendable {
             subhead: "Stream pod logs or edit YAML in a dedicated window without leaving the app.",
             showsCheckmark: false,
             ctaTitle: "Continue",
-            showsSkip: false
+            showsSkip: false,
+            videoName: "inspect"
         ),
         OnboardingStep(
             id: "act",
@@ -62,7 +68,8 @@ struct OnboardingStep: Identifiable, Equatable, Sendable {
             subhead: "Workload actions from the row — no juggling kubectl one-liners.",
             showsCheckmark: false,
             ctaTitle: "Continue",
-            showsSkip: false
+            showsSkip: false,
+            videoName: "act"
         ),
         OnboardingStep(
             id: "ready",
@@ -71,7 +78,8 @@ struct OnboardingStep: Identifiable, Equatable, Sendable {
             subhead: "Pick a context and open your first live table.",
             showsCheckmark: true,
             ctaTitle: "Get Started",
-            showsSkip: false
+            showsSkip: false,
+            videoName: nil
         ),
     ]
 }

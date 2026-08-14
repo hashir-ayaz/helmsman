@@ -135,9 +135,18 @@ struct ResourceDetailView: View {
                         onShowAllPods: resource.resource == "services" ? onShowAllPods : nil
                     )
                 } else if let error = model.error {
-                    Text(error.errorDescription ?? "Error")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
+                    InlineErrorBanner(
+                        message: error.errorDescription ?? "Couldn't load this object.",
+                        tip: error.displayTip,
+                        retry: error.isRBAC ? nil : {
+                            Task {
+                                await model.reloadObject(
+                                    ctx: app.selectedContext, ns: namespace,
+                                    resource: resource, name: row.object.name
+                                )
+                            }
+                        }
+                    )
                 } else {
                     DetailOverviewSkeleton()
                 }
@@ -159,6 +168,20 @@ struct ResourceDetailView: View {
                 DetailObjectSkeleton()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(12)
+            } else if let error = model.error {
+                InlineErrorBanner(
+                    message: error.errorDescription ?? "Couldn't load this object.",
+                    tip: error.displayTip,
+                    retry: error.isRBAC ? nil : {
+                        Task {
+                            await model.reloadObject(
+                                ctx: app.selectedContext, ns: namespace,
+                                resource: resource, name: row.object.name
+                            )
+                        }
+                    }
+                )
+                .padding(12)
             } else {
                 DetailObjectSkeleton()
                     .padding(12)
@@ -180,9 +203,19 @@ struct ResourceDetailView: View {
                     .padding(12)
                     .contentAppear()
             } else if let error = model.error {
-                Text(error.errorDescription ?? "Error")
-                    .foregroundStyle(.secondary)
-                    .padding()
+                InlineErrorBanner(
+                    message: error.errorDescription ?? "Couldn't load YAML.",
+                    tip: error.displayTip,
+                    retry: error.isRBAC ? nil : {
+                        Task {
+                            await model.reloadYAML(
+                                ctx: app.selectedContext, ns: namespace,
+                                resource: resource, name: row.object.name
+                            )
+                        }
+                    }
+                )
+                .padding(12)
             }
         }
     }

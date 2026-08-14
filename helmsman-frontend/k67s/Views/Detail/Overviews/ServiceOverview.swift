@@ -102,9 +102,16 @@ struct ServiceOverview: View {
                             .foregroundStyle(.secondary)
                     }
                 } else if let error = podsModel.error {
-                    Text(error.errorDescription ?? "Failed to load pods")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    InlineErrorBanner(
+                        message: error.errorDescription ?? "Failed to load pods",
+                        tip: error.displayTip,
+                        retry: error.isRBAC ? nil : {
+                            Task {
+                                guard let ctx, let ns = effectiveNamespace, let matchLabels else { return }
+                                await podsModel.load(ctx: ctx, namespace: ns, matchLabels: matchLabels)
+                            }
+                        }
+                    )
                 } else if matchLabels?.isEmpty != false {
                     Text("No pod selector — backends may be manual Endpoints.")
                         .font(.caption)
@@ -161,9 +168,16 @@ struct ServiceOverview: View {
                             .foregroundStyle(.secondary)
                     }
                 } else if let error = endpointsModel.error {
-                    Text(error.errorDescription ?? "Failed to load endpoints")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    InlineErrorBanner(
+                        message: error.errorDescription ?? "Failed to load endpoints",
+                        tip: error.displayTip,
+                        retry: error.isRBAC ? nil : {
+                            Task {
+                                guard let ctx, let ns = effectiveNamespace else { return }
+                                await endpointsModel.load(ctx: ctx, namespace: ns, serviceName: serviceName)
+                            }
+                        }
+                    )
                 } else if endpointsModel.addresses.isEmpty {
                     Text("No endpoints")
                         .font(.caption)

@@ -49,30 +49,33 @@ struct RolloutHistorySheet: View {
     }
 
     private var sheetHeader: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "clock.arrow.circlepath")
-                .foregroundStyle(.secondary)
-            VStack(alignment: .leading, spacing: 2) {
-                Text("Rollout History")
-                    .font(.headline)
-                Text(name)
-                    .font(.caption)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Image(systemName: "clock.arrow.circlepath")
                     .foregroundStyle(.secondary)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Rollout History")
+                        .font(.headline)
+                    Text(name)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if model.isUndoing {
+                    ProgressView()
+                        .controlSize(.small)
+                }
+                Button("Done") { dismiss() }
             }
-            Spacer()
-            if model.isUndoing {
-                ProgressView()
-                    .controlSize(.small)
+            .padding(12)
+
+            if let error = model.error, !model.revisions.isEmpty {
+                StatusBanner(
+                    message: error.errorDescription ?? "Undo failed.",
+                    kind: .error
+                )
             }
-            if let error = model.error {
-                Label(error.errorDescription ?? "Error", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
-                    .font(.caption)
-                    .lineLimit(1)
-            }
-            Button("Done") { dismiss() }
         }
-        .padding(12)
     }
 
     private var revisionList: some View {

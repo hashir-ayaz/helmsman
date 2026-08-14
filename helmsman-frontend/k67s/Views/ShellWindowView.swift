@@ -85,7 +85,10 @@ struct ShellWindowView: View {
             ContentUnavailableView {
                 Label("kubectl Not Found", systemImage: "terminal")
             } description: {
-                Text("Install kubectl to use the shell feature.\n`brew install kubectl`")
+                VStack(spacing: 12) {
+                    Text("Install kubectl to use the shell feature.")
+                    TipCallout(text: "brew install kubectl")
+                }
             }
         } else if let params = model.launchParams() {
             TerminalSurface(

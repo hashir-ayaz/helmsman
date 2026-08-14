@@ -179,10 +179,7 @@ struct ClusterOverviewView: View {
     }
 
     private func inlineError(_ message: String) -> some View {
-        Text(message)
-            .font(.caption)
-            .foregroundStyle(.secondary)
-            .padding(.vertical, 4)
+        InlineErrorBanner(message: message)
     }
 
     @ToolbarContentBuilder
@@ -227,7 +224,7 @@ private struct SummaryCardView: View {
             if let error = card.errorMessage {
                 Text(error)
                     .font(.caption2)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HelmsmanBrand.warning)
                     .lineLimit(2)
             }
         }
@@ -253,7 +250,7 @@ private struct WorkloadBarView: View {
             if let error = bar.errorMessage {
                 Text(error)
                     .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(HelmsmanBrand.warning)
             } else if bar.total == 0 {
                 Text("No resources")
                     .font(.caption)
