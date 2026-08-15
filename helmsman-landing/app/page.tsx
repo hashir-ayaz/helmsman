@@ -8,7 +8,7 @@ import {
 } from "@/components/site-delight";
 
 const CLONE_CMD = "git clone https://github.com/hashir-ayaz/helmsman";
-const DMG_URL = "https://qkupugaejupbhwpobbdr.supabase.co/storage/v1/object/public/helmsman-dmg/Helmsman.dmg";
+const DMG_URL = "https://ltfgqzlshgkzbuugaakp.supabase.co/storage/v1/object/public/helmsman-dmg/Helmsman.dmg";
 const BREW_TAP = "brew tap hashir-ayaz/helmsman";
 const BREW_TRUST = "brew trust hashir-ayaz/helmsman";
 const BREW_INSTALL = "brew install --cask helmsman";

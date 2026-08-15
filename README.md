@@ -3,7 +3,7 @@
 A native macOS Kubernetes manager. Browse every resource type, stream live logs, edit YAML, scale workloads, manage rollouts — all against your existing kubeconfig. No cloud account. No cluster agent. No Electron.
 
 **Landing page:** [helmsman-landing.vercel.app](https://helmsman-landing.vercel.app)  
-**Download:** *(DMG coming soon)*
+**Download:** [Helmsman.dmg](https://ltfgqzlshgkzbuugaakp.supabase.co/storage/v1/object/public/helmsman-dmg/Helmsman.dmg)
 
 ---
 
