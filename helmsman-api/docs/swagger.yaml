@@ -22,6 +22,8 @@ definitions:
     type: object
   handler.APIResponse:
     properties:
+      code:
+        type: string
       data: {}
       error:
         type: string
@@ -206,6 +208,15 @@ paths:
       - logs
   /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}/{name}:
     delete:
+      parameters:
+      - description: Grace period in seconds (0 = immediate)
+        in: query
+        name: gracePeriodSeconds
+        type: integer
+      - description: 'Cascade policy: Foreground, Background, or Orphan'
+        in: query
+        name: propagationPolicy
+        type: string
       produces:
       - application/json
       responses: {}
@@ -298,6 +309,15 @@ paths:
       - resources
   /api/v1/contexts/{ctx}/resources/{resource}/{name}:
     delete:
+      parameters:
+      - description: Grace period in seconds (0 = immediate)
+        in: query
+        name: gracePeriodSeconds
+        type: integer
+      - description: 'Cascade policy: Foreground, Background, or Orphan'
+        in: query
+        name: propagationPolicy
+        type: string
       produces:
       - application/json
       responses: {}
@@ -340,6 +360,37 @@ paths:
       summary: Watch resources (SSE)
       tags:
       - watch
+  /api/v1/contexts/{ctx}/status:
+    get:
+      parameters:
+      - description: Context name, or _current for the active context
+        in: path
+        name: ctx
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            allOf:
+            - $ref: '#/definitions/handler.APIResponse'
+            - properties:
+                data:
+                  $ref: '#/definitions/cluster.Status'
+              type: object
+        "404":
+          description: Not Found
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+        "503":
+          description: Service Unavailable
+          schema:
+            $ref: '#/definitions/handler.APIResponse'
+      summary: Probe one kubeconfig context
+      tags:
+      - contexts
   /api/v1/status:
     get:
       produces:

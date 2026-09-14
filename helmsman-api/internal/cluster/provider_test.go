@@ -23,6 +23,8 @@ contexts:
   context: {cluster: dev-cluster, namespace: dev-ns}
 - name: prod
   context: {cluster: prod-cluster}
+- name: aaa-last
+  context: {cluster: dev-cluster}
 users: []
 `
 
@@ -42,8 +44,14 @@ func TestProviderContexts(t *testing.T) {
 		t.Errorf("Current() = %q, want dev", got)
 	}
 	ctxs := p.Contexts()
-	if len(ctxs) != 2 {
-		t.Fatalf("got %d contexts, want 2", len(ctxs))
+	if len(ctxs) != 3 {
+		t.Fatalf("got %d contexts, want 3", len(ctxs))
+	}
+	wantOrder := []string{"aaa-last", "dev", "prod"}
+	for i, want := range wantOrder {
+		if ctxs[i].Name != want {
+			t.Errorf("Contexts()[%d].Name = %q, want %q (sorted by name)", i, ctxs[i].Name, want)
+		}
 	}
 	byName := map[string]ContextInfo{}
 	for _, c := range ctxs {
@@ -101,7 +109,7 @@ func TestProviderProbeUnreachable(t *testing.T) {
 		t.Fatalf("Status() = %+v, want ready (cheap check)", st)
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), 8*time.Second)
 	defer cancel()
 	probe := p.Probe(ctx, "")
 	if probe.Ready {

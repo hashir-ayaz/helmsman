@@ -153,6 +153,20 @@ const docTemplate = `{
                     "resources"
                 ],
                 "summary": "Delete one resource",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Grace period in seconds (0 = immediate)",
+                        "name": "gracePeriodSeconds",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cascade policy: Foreground, Background, or Orphan",
+                        "name": "propagationPolicy",
+                        "in": "query"
+                    }
+                ],
                 "responses": {}
             },
             "patch": {
@@ -401,6 +415,20 @@ const docTemplate = `{
                     "resources"
                 ],
                 "summary": "Delete one resource",
+                "parameters": [
+                    {
+                        "type": "integer",
+                        "description": "Grace period in seconds (0 = immediate)",
+                        "name": "gracePeriodSeconds",
+                        "in": "query"
+                    },
+                    {
+                        "type": "string",
+                        "description": "Cascade policy: Foreground, Background, or Orphan",
+                        "name": "propagationPolicy",
+                        "in": "query"
+                    }
+                ],
                 "responses": {}
             },
             "patch": {
@@ -427,6 +455,58 @@ const docTemplate = `{
                 ],
                 "summary": "Get one resource as YAML",
                 "responses": {}
+            }
+        },
+        "/api/v1/contexts/{ctx}/status": {
+            "get": {
+                "produces": [
+                    "application/json"
+                ],
+                "tags": [
+                    "contexts"
+                ],
+                "summary": "Probe one kubeconfig context",
+                "parameters": [
+                    {
+                        "type": "string",
+                        "description": "Context name, or _current for the active context",
+                        "name": "ctx",
+                        "in": "path",
+                        "required": true
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "OK",
+                        "schema": {
+                            "allOf": [
+                                {
+                                    "$ref": "#/definitions/handler.APIResponse"
+                                },
+                                {
+                                    "type": "object",
+                                    "properties": {
+                                        "data": {
+                                            "$ref": "#/definitions/cluster.Status"
+                                        }
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    "404": {
+                        "description": "Not Found",
+                        "schema": {
+                            "$ref": "#/definitions/handler.APIResponse"
+                        }
+                    },
+                    "503": {
+                        "description": "Service Unavailable",
+                        "schema": {
+                            "$ref": "#/definitions/handler.APIResponse"
+                        }
+                    }
+                }
             }
         },
         "/api/v1/status": {
@@ -496,6 +576,9 @@ const docTemplate = `{
         "handler.APIResponse": {
             "type": "object",
             "properties": {
+                "code": {
+                    "type": "string"
+                },
                 "data": {},
                 "error": {
                     "type": "string"

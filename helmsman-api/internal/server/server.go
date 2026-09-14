@@ -28,6 +28,7 @@ func New(port string, h handler.Handlers) *Server {
 
 	mux.HandleFunc("GET /api/v1/status", h.Status.Get)
 	mux.HandleFunc("GET /api/v1/contexts", h.Contexts.List)
+	mux.HandleFunc("GET /api/v1/contexts/{ctx}/status", h.Contexts.Status)
 
 	// Generic resources.
 	mux.HandleFunc("POST /api/v1/contexts/{ctx}/resources", h.Resources.Apply)

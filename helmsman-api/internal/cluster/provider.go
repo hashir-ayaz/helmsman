@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 	"sync"
 	"time"
@@ -21,8 +22,10 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// probeTimeout caps the live API-server dial used by Probe.
-const probeTimeout = 3 * time.Second
+// probeTimeout caps the live API-server dial used by Probe. Exec-plugin
+// credential helpers (e.g. aws eks get-token) can exceed 3 s on a cold start,
+// especially when several contexts are probed in parallel.
+const probeTimeout = 6 * time.Second
 
 // Status describes whether the cluster provider is ready to serve requests.
 type Status struct {
@@ -136,6 +139,8 @@ func NewProvider(kubeconfigPath string) Provider {
 			IsCurrent: name == cfg.CurrentContext,
 		})
 	}
+	// Map iteration order is random; sort so the UI list is stable across starts.
+	sort.Slice(infos, func(i, j int) bool { return infos[i].Name < infos[j].Name })
 
 	return &kubeProvider{
 		raw:     clientcmd.NewDefaultClientConfig(*cfg, &clientcmd.ConfigOverrides{}),
