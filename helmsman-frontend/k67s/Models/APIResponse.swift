@@ -83,6 +83,7 @@ enum APIError: LocalizedError, Equatable {
         case "kubeconfig_not_found": return "Kubeconfig Not Found"
         case "kubeconfig_invalid": return "Invalid Kubeconfig"
         case "no_contexts": return "No Contexts Configured"
+        case "cluster_auth": return "Authentication Failed"
         default: return "Couldn’t Load"
         }
     }
@@ -100,6 +101,8 @@ enum APIError: LocalizedError, Equatable {
             return "Check that your kubeconfig is valid YAML and contains at least one context."
         case "no_contexts":
             return "Add a cluster context to your kubeconfig, then try again."
+        case "cluster_auth":
+            return "Your login for this cluster may have expired, or its auth plugin is missing. Refresh your credentials with kubectl — for example kubectl get nodes — then try again."
         default:
             return nil
         }
