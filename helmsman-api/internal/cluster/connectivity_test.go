@@ -7,6 +7,9 @@ import (
 	"fmt"
 	"net"
 	"testing"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/runtime/schema"
 )
 
 func TestClassifyConnectivityTimeout(t *testing.T) {
@@ -55,6 +58,57 @@ func TestClassifyConnectivityTLS(t *testing.T) {
 	}
 	if msg != msgClusterTLS {
 		t.Errorf("msg = %q, want TLS message", msg)
+	}
+}
+
+func TestClassifyConnectivityAuth(t *testing.T) {
+	cases := []error{
+		apierrors.NewUnauthorized("token expired"),
+		fmt.Errorf("wrapped: %w", apierrors.NewUnauthorized("x")),
+		errors.New(`Get "https://h/version": getting credentials: exec: executable aws failed with exit code 255`),
+		errors.New("exec: executable gke-gcloud-auth-plugin not found"),
+		errors.New(`no Auth Provider found for name "gcp"`),
+	}
+	for _, err := range cases {
+		code, msg, ok := ClassifyConnectivity(err)
+		if !ok || code != CodeClusterAuth {
+			t.Errorf("%v → ok=%v code=%q, want auth", err, ok, code)
+		}
+		if msg == "" {
+			t.Errorf("%v: empty message", err)
+		}
+	}
+
+	// Dial failures must keep their unreachable classification.
+	code, _, ok := ClassifyConnectivity(errors.New("dial tcp 127.0.0.1:6443: connect: connection refused"))
+	if !ok || code != CodeClusterUnreachable {
+		t.Errorf("connection refused → ok=%v code=%q, want unreachable", ok, code)
+	}
+
+	// RBAC forbidden is first-class in the app and must stay unclassified.
+	notAuth := []error{
+		errors.New("pods is forbidden"),
+		apierrors.NewForbidden(schema.GroupResource{Resource: "pods"}, "x", errors.New("rbac")),
+	}
+	for _, err := range notAuth {
+		code, _, ok := ClassifyConnectivity(err)
+		if ok || code == CodeClusterAuth {
+			t.Errorf("%v → ok=%v code=%q, want unclassified", err, ok, code)
+		}
+	}
+}
+
+func TestStatusFromConnectivityAuth(t *testing.T) {
+	err := errors.New(`Get "https://h/version": getting credentials: exec: executable aws failed with exit code 255`)
+	st := StatusFromConnectivity(err)
+	if st.Ready {
+		t.Fatal("expected Ready=false")
+	}
+	if st.Code != CodeClusterAuth {
+		t.Errorf("Code = %q, want %q", st.Code, CodeClusterAuth)
+	}
+	if st.Message == "" {
+		t.Error("expected message")
 	}
 }
 

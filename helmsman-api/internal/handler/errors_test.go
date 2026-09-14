@@ -42,6 +42,11 @@ func TestStatusFromK8sErr(t *testing.T) {
 			http.StatusGatewayTimeout,
 			cluster.CodeClusterTimeout,
 		},
+		{
+			errors.New(`Get "https://h/version": getting credentials: exec: executable aws failed with exit code 255`),
+			http.StatusBadGateway,
+			cluster.CodeClusterAuth,
+		},
 	}
 	for _, c := range cases {
 		gotStatus, gotCode, _ := statusFromK8sErr(c.err)
@@ -68,6 +73,31 @@ func TestStatusFromK8sErrStatusMessage(t *testing.T) {
 	}
 	if msg != "apply failed: field is immutable" {
 		t.Errorf("msg = %q", msg)
+	}
+}
+
+func TestStatusFromK8sErrAuthPluginIsTyped(t *testing.T) {
+	err := errors.New(`Get "https://h/version": getting credentials: exec: executable aws failed with exit code 255`)
+	status, code, msg := statusFromK8sErr(err)
+	if status != http.StatusBadGateway {
+		t.Errorf("status = %d, want 502", status)
+	}
+	if code != cluster.CodeClusterAuth {
+		t.Errorf("code = %q, want %q", code, cluster.CodeClusterAuth)
+	}
+	if msg == "" || msg == err.Error() {
+		t.Errorf("msg = %q, want friendly non-empty message", msg)
+	}
+}
+
+func TestStatusFromK8sErrForbiddenStaysRBAC(t *testing.T) {
+	err := apierrors.NewForbidden(schema.GroupResource{Resource: "pods"}, "x", errors.New("rbac"))
+	status, code, _ := statusFromK8sErr(err)
+	if status != http.StatusForbidden {
+		t.Errorf("status = %d, want 403", status)
+	}
+	if code != "" {
+		t.Errorf("code = %q, want empty", code)
 	}
 }
 

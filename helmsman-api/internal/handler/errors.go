@@ -22,6 +22,10 @@ func statusFromK8sErr(err error) (status int, code, msg string) {
 		switch c {
 		case cluster.CodeClusterTimeout:
 			return http.StatusGatewayTimeout, c, message
+		case cluster.CodeClusterAuth:
+			// 502 rather than 401 so the Swift client keeps the typed code
+			// (APIError.from maps 502/503/504 to .unavailable(code:)).
+			return http.StatusBadGateway, c, message
 		default:
 			return http.StatusBadGateway, c, message
 		}

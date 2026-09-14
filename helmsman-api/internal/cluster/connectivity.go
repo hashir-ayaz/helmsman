@@ -8,18 +8,22 @@ import (
 	"os"
 	"strings"
 	"syscall"
+
+	apierrors "k8s.io/apimachinery/pkg/api/errors"
 )
 
 // Typed connectivity / readiness codes returned to the frontend.
 const (
 	CodeClusterUnreachable = "cluster_unreachable"
 	CodeClusterTimeout     = "cluster_timeout"
+	CodeClusterAuth        = "cluster_auth"
 )
 
 const (
 	msgClusterUnreachable = "Could not reach the cluster API server. Check that the cluster is running."
 	msgClusterTimeout     = "The cluster API server did not respond in time."
 	msgClusterTLS         = "Could not establish a secure connection to the cluster API server."
+	msgClusterAuth        = "Helmsman could not authenticate to this cluster. Your credentials may have expired or the auth plugin is missing."
 )
 
 // ClassifyConnectivity maps dial/timeout/TLS transport errors to a typed code
@@ -67,6 +71,18 @@ func ClassifyConnectivity(err error) (code, message string, ok bool) {
 		strings.Contains(lower, "no route to host") ||
 		strings.Contains(lower, "connection reset") {
 		return CodeClusterUnreachable, msgClusterUnreachable, true
+	}
+
+	// Credential failures. Exec-plugin errors (aws eks get-token,
+	// gke-gcloud-auth-plugin, …) reach us as string-only errors because
+	// client-go formats them with %v, not %w, so they must be matched on text.
+	// Forbidden (RBAC 403) is deliberately excluded — the app surfaces it as-is.
+	if apierrors.IsUnauthorized(err) ||
+		strings.Contains(lower, "getting credentials:") ||
+		strings.Contains(lower, "exec: executable") ||
+		strings.Contains(lower, "exec plugin") ||
+		strings.Contains(lower, "no auth provider found") {
+		return CodeClusterAuth, msgClusterAuth, true
 	}
 
 	var opErr *net.OpError
