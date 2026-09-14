@@ -39,6 +39,8 @@ final class ResourceActionsModel {
     var actionToast: String?
 
     /// The resource being acted on (its API path segment + restart workload).
+    /// Context every action targets. Set by the list alongside `resource`.
+    var ctx = "_current"
     var resource: ResourceType?
 
     var onMutated: (TablePayload.Row.ID?) -> Void = { _ in }
@@ -125,6 +127,7 @@ final class ResourceActionsModel {
         let storage = "\(value)\(resizeUnit.rawValue)"
         await run {
             try await KubeAPIClient.shared.resizePVC(
+                ctx: ctx,
                 ns: target.row.object.namespace ?? "",
                 name: target.row.object.name,
                 storage: storage
@@ -146,6 +149,7 @@ final class ResourceActionsModel {
               let replicas = Int(replicasText.trimmingCharacters(in: .whitespaces)) else { return }
         await run {
             try await KubeAPIClient.shared.scale(
+                ctx: ctx,
                 ns: row.object.namespace ?? "", workload: workload, name: row.object.name, replicas: replicas
             )
         }
@@ -157,6 +161,7 @@ final class ResourceActionsModel {
         let stamp = ISO8601DateFormatter().string(from: Date())
         await run {
             try await KubeAPIClient.shared.restart(
+                ctx: ctx,
                 ns: row.object.namespace ?? "", workload: workload, name: row.object.name, restartedAt: stamp
             )
         }
@@ -168,6 +173,7 @@ final class ResourceActionsModel {
         let rowID = row.id
         await run(mutatedRowID: rowID) {
             try await KubeAPIClient.shared.delete(
+                ctx: ctx,
                 ns: row.object.namespace ?? "", resource: resource.resource, name: row.object.name
             )
         }
@@ -179,6 +185,7 @@ final class ResourceActionsModel {
         let rowID = row.id
         await run(mutatedRowID: rowID) {
             try await KubeAPIClient.shared.delete(
+                ctx: ctx,
                 ns: row.object.namespace ?? "",
                 resource: resource.resource,
                 name: row.object.name,
@@ -204,6 +211,7 @@ final class ResourceActionsModel {
         let grace = deleteImmediate ? 0 : nil
         await run(mutatedRowID: rowID) {
             try await KubeAPIClient.shared.delete(
+                ctx: ctx,
                 ns: row.object.namespace ?? "",
                 resource: resource.resource,
                 name: row.object.name,
@@ -226,7 +234,7 @@ final class ResourceActionsModel {
         actionError = nil
         defer { isBusy = false }
         do {
-            let created = try await KubeAPIClient.shared.triggerCronJob(ns: ns, name: cronJobName)
+            let created = try await KubeAPIClient.shared.triggerCronJob(ctx: ctx, ns: ns, name: cronJobName)
             onMutated(nil)
             showActionToast("Created Job \(created.name)")
         } catch let apiError as APIError {
@@ -241,6 +249,7 @@ final class ResourceActionsModel {
         guard let row, let workload = resource?.restartWorkload else { return }
         await run {
             try await KubeAPIClient.shared.rolloutPause(
+                ctx: ctx,
                 ns: row.object.namespace ?? "", workload: workload, name: row.object.name
             )
         }
@@ -250,6 +259,7 @@ final class ResourceActionsModel {
         guard let row, let workload = resource?.restartWorkload else { return }
         await run {
             try await KubeAPIClient.shared.rolloutResume(
+                ctx: ctx,
                 ns: row.object.namespace ?? "", workload: workload, name: row.object.name
             )
         }
@@ -259,6 +269,7 @@ final class ResourceActionsModel {
         guard let row, let workload = resource?.suspendWorkload else { return }
         await run {
             try await KubeAPIClient.shared.suspend(
+                ctx: ctx,
                 ns: row.object.namespace ?? "", workload: workload, name: row.object.name
             )
         }
@@ -268,6 +279,7 @@ final class ResourceActionsModel {
         guard let row, let workload = resource?.suspendWorkload else { return }
         await run {
             try await KubeAPIClient.shared.resume(
+                ctx: ctx,
                 ns: row.object.namespace ?? "", workload: workload, name: row.object.name
             )
         }
@@ -277,6 +289,7 @@ final class ResourceActionsModel {
         guard let row else { return }
         await run {
             try await KubeAPIClient.shared.cancelJob(
+                ctx: ctx,
                 ns: row.object.namespace ?? "", name: row.object.name
             )
         }
@@ -286,7 +299,7 @@ final class ResourceActionsModel {
     func performDrain(_ row: TablePayload.Row?) async {
         guard let row else { return }
         await run {
-            try await KubeAPIClient.shared.drainNode(name: row.object.name)
+            try await KubeAPIClient.shared.drainNode(ctx: ctx, name: row.object.name)
         }
         drainTarget = nil
     }

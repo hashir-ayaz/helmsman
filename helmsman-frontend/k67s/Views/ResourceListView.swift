@@ -91,6 +91,7 @@ struct ResourceListView: View {
         .toolbar { toolbarContent }
         .rowActionAlerts(actions)
         .task(id: taskKey) {
+            actions.ctx = app.selectedContext
             actions.resource = resource
             model.willMutatePayload = { selectedRowID = nil }
             if resource.isPods, let filter = app.podsListFilter {
