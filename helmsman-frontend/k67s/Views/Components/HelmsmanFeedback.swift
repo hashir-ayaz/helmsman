@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 /// Shared brand + semantic colors for product UI polish moments.
 /// Amber is the instrument-panel accent from DESIGN.md; used sparingly on CTAs and active indicators.
@@ -15,6 +16,43 @@ enum HelmsmanBrand {
     static let danger = Color.red
     static let warning = Color.orange
     static let success = Color.green
+}
+
+/// Adaptive window gradient shared by the bootstrap gate and the context picker.
+struct HelmsmanGateBackground: View {
+    var body: some View {
+        LinearGradient(
+            colors: [
+                Color(nsColor: .windowBackgroundColor),
+                Color(nsColor: .controlBackgroundColor).opacity(0.6),
+            ],
+            startPoint: .topLeading,
+            endPoint: .bottomTrailing
+        )
+        .ignoresSafeArea()
+    }
+}
+
+/// The app icon with a soft shadow; falls back to the helm symbol.
+struct HelmsmanAppIcon: View {
+    var size: CGFloat = 72
+
+    var body: some View {
+        Group {
+            if let image = NSApplication.shared.applicationIconImage {
+                Image(nsImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+            } else {
+                Image(systemName: "helm")
+                    .font(.system(size: size * 0.78))
+                    .foregroundStyle(HelmsmanBrand.amber)
+                    .symbolRenderingMode(.hierarchical)
+            }
+        }
+        .frame(width: size, height: size)
+        .shadow(color: .black.opacity(0.12), radius: size / 9, y: size / 18)
+    }
 }
 
 /// Reusable tip / guidance chip used by bootstrap and full-pane errors.

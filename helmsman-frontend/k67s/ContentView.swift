@@ -31,8 +31,8 @@ struct ContentView: View {
                 Task { await app.retryConnection() }
             }
         case .selectingContext:
-            // Replaced by ContextPickerView in the next commit.
-            EmptyView()
+            ContextPickerView(app: app)
+                .transition(.opacity)
         case .ready:
             mainView
         }

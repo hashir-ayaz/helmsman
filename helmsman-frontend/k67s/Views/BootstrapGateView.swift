@@ -1,5 +1,4 @@
 import SwiftUI
-import AppKit
 
 /// Branded full-window gate shown while Helmsman boots and connects to the cluster.
 struct BootstrapGateView: View {
@@ -15,22 +14,10 @@ struct BootstrapGateView: View {
 
     var body: some View {
         ZStack {
-            background
+            HelmsmanGateBackground()
             content
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-
-    private var background: some View {
-        LinearGradient(
-            colors: [
-                Color(nsColor: .windowBackgroundColor),
-                Color(nsColor: .controlBackgroundColor).opacity(0.6),
-            ],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
-        .ignoresSafeArea()
     }
 
     @ViewBuilder
@@ -45,7 +32,7 @@ struct BootstrapGateView: View {
 
     private func connectingContent(step: AppModel.BootstrapStep) -> some View {
         VStack(spacing: 24) {
-            appIcon
+            HelmsmanAppIcon()
             VStack(spacing: 8) {
                 Text("Helmsman")
                     .font(.system(size: 32, weight: .semibold, design: .rounded))
@@ -104,23 +91,6 @@ struct BootstrapGateView: View {
                 .symbolRenderingMode(.hierarchical)
         }
         .accessibilityHidden(true)
-    }
-
-    private var appIcon: some View {
-        Group {
-            if let image = NSApplication.shared.applicationIconImage {
-                Image(nsImage: image)
-                    .resizable()
-                    .aspectRatio(contentMode: .fit)
-            } else {
-                Image(systemName: "helm")
-                    .font(.system(size: 56))
-                    .foregroundStyle(HelmsmanBrand.amber)
-                    .symbolRenderingMode(.hierarchical)
-            }
-        }
-        .frame(width: 72, height: 72)
-        .shadow(color: .black.opacity(0.12), radius: 8, y: 4)
     }
 
     private func stepMessage(_ step: AppModel.BootstrapStep) -> String {
