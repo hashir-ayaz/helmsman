@@ -32,15 +32,11 @@ struct ContextCardView: View {
                 detailRow(label: "Cluster", value: context.cluster)
                 detailRow(label: "Namespace", value: context.namespace.isEmpty ? "default" : context.namespace)
             }
-            if context.isCurrent || isActive {
-                badgesRow
-            }
-            if case .unreachable(let error) = health {
-                errorBlock(error)
-            }
+            badgesRow
+            statusPanel
         }
         .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         .background(.background.secondary, in: shape)
         .overlay(shape.strokeBorder(strokeColor, lineWidth: isActive ? 1.5 : 1))
         .overlay {
@@ -68,7 +64,7 @@ struct ContextCardView: View {
                 .foregroundStyle(HelmsmanBrand.amber)
             Text(context.name)
                 .font(.headline)
-                .lineLimit(2)
+                .lineLimit(2, reservesSpace: true)
                 .truncationMode(.middle)
                 .multilineTextAlignment(.leading)
             Spacer(minLength: 8)
@@ -90,6 +86,7 @@ struct ContextCardView: View {
         }
     }
 
+    /// Fixed height so cards without badges match cards with them.
     private var badgesRow: some View {
         HStack(spacing: 6) {
             if context.isCurrent {
@@ -99,6 +96,7 @@ struct ContextCardView: View {
                 badge("Connected", tint: HelmsmanBrand.amber)
             }
         }
+        .frame(height: 20, alignment: .leading)
     }
 
     private func badge(_ text: String, tint: Color) -> some View {
@@ -110,22 +108,41 @@ struct ContextCardView: View {
             .foregroundStyle(tint)
     }
 
-    private func errorBlock(_ error: APIError) -> some View {
+    /// Bottom panel present on every card: a title line plus four reserved
+    /// caption lines, so healthy and failed cards share one height. Failed cards
+    /// show the next-step tip here; the full text is also available as a tooltip.
+    private var statusPanel: some View {
         VStack(alignment: .leading, spacing: 6) {
             Divider()
-            Text(Self.title(for: error))
+            Text(statusTitle)
                 .font(.subheadline.weight(.semibold))
-            Text(error.errorDescription ?? "Something went wrong.")
-                .font(.callout)
+                .lineLimit(1)
+            Text(statusBody)
+                .font(.caption)
                 .foregroundStyle(.secondary)
-            if let tip = Self.tip(for: error) {
-                Text(tip)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-            }
+                .lineLimit(4, reservesSpace: true)
         }
         .multilineTextAlignment(.leading)
-        .fixedSize(horizontal: false, vertical: true)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .help(statusBody)
+    }
+
+    private var statusTitle: String {
+        switch health {
+        case nil: "Not checked yet"
+        case .probing: "Checking reachability…"
+        case .reachable: "Ready to connect"
+        case .unreachable(let error): Self.title(for: error)
+        }
+    }
+
+    private var statusBody: String {
+        switch health {
+        case nil, .reachable: "Click to open this cluster."
+        case .probing: "Dialing the API server…"
+        case .unreachable(let error):
+            Self.tip(for: error) ?? error.errorDescription ?? "Something went wrong."
+        }
     }
 
     // MARK: - Health
