@@ -15,6 +15,7 @@ final class AppModel {
 
     enum ConnectionPhase: Equatable {
         case connecting
+        case selectingContext
         case ready
         case failed(title: String, message: String, code: String?)
     }
@@ -120,37 +121,58 @@ final class AppModel {
 
         guard await waitForBackend() else { return }
 
-        bootstrapStep = .checkingCluster
-        do {
-            let status = try await KubeAPIClient.shared.fetchStatus()
-            if !status.ready {
-                connectionPhase = .failed(
-                    title: Self.title(for: status.code),
-                    message: status.message.isEmpty
-                        ? "There was an error connecting to your cluster."
-                        : status.message,
-                    code: status.code
-                )
-                return
-            }
-        } catch {
-            connectionPhase = .failed(
-                title: "Connection Failed",
-                message: "There was an error connecting to your cluster.",
-                code: nil
-            )
-            return
-        }
-
         bootstrapStep = .loadingContexts
         guard await loadContexts() else { return }
-        await loadNamespaces()
-        connectionPhase = .ready
-        await reloadSidebarCounts()
+
+        if contexts.count == 1 {
+            if let error = await connect(to: contexts[0].name) {
+                setFailed(from: error)
+            }
+        } else {
+            connectionPhase = .selectingContext
+        }
     }
 
     func retryConnection() async {
         await bootstrap()
+    }
+
+    /// Probes `name`, then makes it the active context. Returns the error and
+    /// leaves the phase unchanged on failure so a multi-context picker can show
+    /// it inline; the single-context path turns it into `.failed`.
+    func connect(to name: String) async -> APIError? {
+        bootstrapStep = .checkingCluster
+        let status: ClusterStatus
+        do {
+            status = try await KubeAPIClient.shared.fetchContextStatus(ctx: name)
+        } catch let error as APIError {
+            return error
+        } catch {
+            return .transport(error.localizedDescription)
+        }
+        if let failure = status.failure { return failure }
+
+        selectedContext = name
+        selectedNamespace = Self.allNamespaces
+        selectedDestination = .overview      // didSet clears podsListFilter
+        await loadNamespaces()               // reads selectedContext — keep this order
+        connectionPhase = .ready
+        await reloadSidebarCounts()
+        return nil
+    }
+
+    func showContextPicker() {
+        connectionPhase = .selectingContext
+    }
+
+    func returnToCluster() {
+        connectionPhase = .ready
+    }
+
+    /// True once a context from the loaded list is active. Also false after a
+    /// refresh drops the connected context from the kubeconfig.
+    var hasConnectedContext: Bool {
+        contexts.contains { $0.name == selectedContext }
     }
 
     @discardableResult
@@ -241,6 +263,8 @@ final class AppModel {
         case "backend_unreachable": "Connection Failed"
         case "cluster_unreachable": "Can’t Reach Cluster"
         case "cluster_timeout": "Cluster Timed Out"
+        case "cluster_auth": "Authentication Failed"
+        case "context_not_found": "Context Not Found"
         default: "Connection Failed"
         }
     }

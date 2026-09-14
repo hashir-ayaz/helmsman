@@ -152,6 +152,8 @@ struct BootstrapGateView: View {
             "Your kubeconfig looks fine, but the API server isn’t responding. Start the cluster (Docker Desktop, kind, minikube, etc.) and tap Retry."
         case "cluster_timeout":
             "Check your network or VPN, or whether the API server is overloaded, then tap Retry."
+        case "cluster_auth":
+            "Your login for this cluster may have expired, or its auth plugin is missing. Refresh your credentials with kubectl — for example kubectl get nodes — then tap Retry."
         default:
             nil
         }

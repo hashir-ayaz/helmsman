@@ -1,7 +1,7 @@
 import Foundation
 
-/// Readiness reported by `GET /api/v1/status`.
-struct ClusterStatus: Decodable, Equatable {
+/// Readiness reported by `GET /api/v1/contexts/{ctx}/status`.
+struct ClusterStatus: Decodable, Equatable, Sendable {
     let ready: Bool
     let code: String
     let message: String

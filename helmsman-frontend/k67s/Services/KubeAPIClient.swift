@@ -39,13 +39,13 @@ actor KubeAPIClient {
         }
     }
 
-    /// Cluster readiness — kubeconfig loaded and contexts available.
-    func fetchStatus() async throws -> ClusterStatus {
-        try await getEnveloped("/api/v1/status")
-    }
-
     func listContexts() async throws -> [ContextInfo] {
         try await getEnveloped("/api/v1/contexts")
+    }
+
+    /// Probes one kubeconfig context. Same body shape as the old status endpoint.
+    func fetchContextStatus(ctx: String) async throws -> ClusterStatus {
+        try await getEnveloped("/api/v1/contexts/\(enc(ctx))/status")
     }
 
     func listResources(

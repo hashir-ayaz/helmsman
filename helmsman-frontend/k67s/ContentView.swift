@@ -30,6 +30,9 @@ struct ContentView: View {
             BootstrapGateView(phase: .failed(title: title, message: message, code: code)) {
                 Task { await app.retryConnection() }
             }
+        case .selectingContext:
+            // Replaced by ContextPickerView in the next commit.
+            EmptyView()
         case .ready:
             mainView
         }
