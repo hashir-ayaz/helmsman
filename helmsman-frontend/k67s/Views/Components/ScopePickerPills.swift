@@ -1,40 +1,27 @@
 import SwiftUI
 
-/// Context + namespace scope controls as rounded pill menus in the detail toolbar.
+/// Context pill opens the full-window cluster picker. Namespace pill is a menu.
 struct ScopePickerPills: View {
     @Bindable var app: AppModel
 
     var body: some View {
         HStack(spacing: 8) {
-            contextMenu
+            contextButton
             namespaceMenu
-        }
-        .onChange(of: app.selectedContext) { _, _ in
-            Task {
-                await app.contextDidChange()
-                await app.reloadSidebarCounts()
-            }
         }
         .onChange(of: app.selectedNamespace) { _, _ in
             Task { await app.reloadSidebarCounts() }
         }
     }
 
-    private var contextMenu: some View {
-        Menu {
-            contextOption(title: "Current Context", tag: "_current")
-            if !app.contexts.isEmpty {
-                Divider()
-                ForEach(app.contexts) { context in
-                    contextOption(title: context.name, tag: context.name)
-                }
-            }
+    private var contextButton: some View {
+        Button {
+            app.showContextPicker()
         } label: {
-            pillLabel(icon: "helm", title: app.contextDisplayName)
+            pillLabel(icon: "helm", title: app.contextDisplayName, trailing: "arrow.left.arrow.right")
         }
-        .menuStyle(.button)
         .buttonStyle(.plain)
-        .help("Kubernetes context")
+        .help("Switch cluster")
     }
 
     private var namespaceMenu: some View {
@@ -58,20 +45,7 @@ struct ScopePickerPills: View {
         .help("Namespace scope")
     }
 
-    @ViewBuilder
-    private func contextOption(title: String, tag: String) -> some View {
-        Button {
-            app.selectedContext = tag
-        } label: {
-            if app.selectedContext == tag {
-                Label(title, systemImage: "checkmark")
-            } else {
-                Text(title)
-            }
-        }
-    }
-
-    private func pillLabel(icon: String, title: String) -> some View {
+    private func pillLabel(icon: String, title: String, trailing: String = "chevron.down") -> some View {
         HStack(spacing: 6) {
             Image(systemName: icon)
                 .font(.caption)
@@ -79,8 +53,8 @@ struct ScopePickerPills: View {
             Text(title)
                 .font(.callout)
                 .lineLimit(1)
-                .truncationMode(.tail)
-            Image(systemName: "chevron.down")
+                .truncationMode(.middle)
+            Image(systemName: trailing)
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.tertiary)
         }

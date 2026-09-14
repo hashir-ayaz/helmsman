@@ -224,12 +224,6 @@ final class AppModel {
         }
     }
 
-    func contextDidChange() async {
-        podsListFilter = nil
-        selectedNamespace = Self.allNamespaces
-        await loadNamespaces()
-    }
-
     func reloadSidebarCounts() async {
         await sidebarCounts.load(ctx: selectedContext, namespaceParam: namespaceParam)
     }
