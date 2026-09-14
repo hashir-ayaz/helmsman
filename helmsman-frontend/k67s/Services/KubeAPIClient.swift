@@ -1,8 +1,9 @@
 import Foundation
 
 /// Generic client for the dynamic Kubernetes backend. Every method is keyed on
-/// the resource type in the URL — no per-resource code. `ctx` defaults to
-/// `_current` (the active kubeconfig context).
+/// the resource type in the URL — no per-resource code. `ctx` falls back to
+/// `_current`, which the backend resolves to the kubeconfig current context;
+/// the UI passes explicit names once a context is chosen.
 actor KubeAPIClient {
     static let shared = KubeAPIClient()
 
@@ -301,10 +302,7 @@ actor KubeAPIClient {
     ) -> AsyncThrowingStream<String, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
-                func encode(_ segment: String) -> String {
-                    segment.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? segment
-                }
-                let path = "/api/v1/contexts/\(encode(ctx))/namespaces/\(encode(ns))/pods/\(encode(pod))/log"
+                let path = "/api/v1/contexts/\(Self.encodeSegment(ctx))/namespaces/\(Self.encodeSegment(ns))/pods/\(Self.encodeSegment(pod))/log"
                 var components = URLComponents(string: Self.baseURL + path)
                 var query: [URLQueryItem] = []
                 if let container, !container.isEmpty {
@@ -356,14 +354,11 @@ actor KubeAPIClient {
     ) -> AsyncThrowingStream<WatchEvent, Error> {
         AsyncThrowingStream { continuation in
             let task = Task {
-                func enc(_ s: String) -> String {
-                    s.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? s
-                }
                 let path: String
                 if let ns, !ns.isEmpty {
-                    path = "/api/v1/contexts/\(enc(ctx))/namespaces/\(enc(ns))/resources/\(enc(resource))/watch"
+                    path = "/api/v1/contexts/\(Self.encodeSegment(ctx))/namespaces/\(Self.encodeSegment(ns))/resources/\(Self.encodeSegment(resource))/watch"
                 } else {
-                    path = "/api/v1/contexts/\(enc(ctx))/resources/\(enc(resource))/watch"
+                    path = "/api/v1/contexts/\(Self.encodeSegment(ctx))/resources/\(Self.encodeSegment(resource))/watch"
                 }
                 var query: [URLQueryItem] = []
                 if let labelSelector {
@@ -431,8 +426,17 @@ actor KubeAPIClient {
         listPath(ctx: ctx, ns: ns, resource: resource) + "/\(enc(name))"
     }
 
+    /// Characters allowed unescaped inside a single URL path segment. Unlike
+    /// `.urlPathAllowed` this escapes `/`, so context names such as EKS ARNs
+    /// (`arn:aws:eks:…:cluster/name`) stay one segment for the Go router.
+    private static let pathSegmentAllowed = CharacterSet.urlPathAllowed.subtracting(CharacterSet(charactersIn: "/"))
+
+    nonisolated private static func encodeSegment(_ segment: String) -> String {
+        segment.addingPercentEncoding(withAllowedCharacters: pathSegmentAllowed) ?? segment
+    }
+
     private func enc(_ segment: String) -> String {
-        segment.addingPercentEncoding(withAllowedCharacters: .urlPathAllowed) ?? segment
+        Self.encodeSegment(segment)
     }
 
     private func makeURL(_ path: String, query: [URLQueryItem]) -> URL? {
