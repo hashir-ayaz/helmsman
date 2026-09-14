@@ -1,12 +1,14 @@
 import SwiftUI
 
-/// Context pill opens the full-window cluster picker. Namespace pill is a menu.
+/// Context + namespace scope controls as rounded pill menus in the detail toolbar.
+/// The context menu also links to the full-window cluster picker.
 struct ScopePickerPills: View {
     @Bindable var app: AppModel
+    @State private var isSwitching = false
 
     var body: some View {
         HStack(spacing: 8) {
-            contextButton
+            contextMenu
             namespaceMenu
         }
         .onChange(of: app.selectedNamespace) { _, _ in
@@ -14,14 +16,43 @@ struct ScopePickerPills: View {
         }
     }
 
-    private var contextButton: some View {
-        Button {
-            app.showContextPicker()
+    private var contextMenu: some View {
+        Menu {
+            ForEach(app.contexts) { context in
+                Button {
+                    switchContext(to: context.name)
+                } label: {
+                    if app.selectedContext == context.name {
+                        Label(context.name, systemImage: "checkmark")
+                    } else {
+                        Text(context.name)
+                    }
+                }
+            }
+            Divider()
+            Button("Choose a Cluster…", systemImage: "square.grid.2x2") {
+                app.showContextPicker()
+            }
         } label: {
-            pillLabel(icon: "helm", title: app.contextDisplayName, trailing: "arrow.left.arrow.right")
+            pillLabel(icon: "helm", title: app.contextDisplayName, isBusy: isSwitching)
         }
+        .menuStyle(.button)
         .buttonStyle(.plain)
-        .help("Switch cluster")
+        .disabled(isSwitching)
+        .help("Kubernetes context")
+    }
+
+    /// Connects in place. On failure the picker opens so the failed card can
+    /// show the message and next step, with the other clusters one click away.
+    private func switchContext(to name: String) {
+        guard name != app.selectedContext, !isSwitching else { return }
+        isSwitching = true
+        Task {
+            defer { isSwitching = false }
+            if await app.connect(to: name) != nil {
+                app.showContextPicker()
+            }
+        }
     }
 
     private var namespaceMenu: some View {
@@ -45,16 +76,21 @@ struct ScopePickerPills: View {
         .help("Namespace scope")
     }
 
-    private func pillLabel(icon: String, title: String, trailing: String = "chevron.down") -> some View {
+    private func pillLabel(icon: String, title: String, isBusy: Bool = false) -> some View {
         HStack(spacing: 6) {
-            Image(systemName: icon)
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if isBusy {
+                ProgressView()
+                    .controlSize(.mini)
+            } else {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
             Text(title)
                 .font(.callout)
                 .lineLimit(1)
                 .truncationMode(.middle)
-            Image(systemName: trailing)
+            Image(systemName: "chevron.down")
                 .font(.caption2.weight(.semibold))
                 .foregroundStyle(.tertiary)
         }
