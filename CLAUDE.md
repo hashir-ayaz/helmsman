@@ -67,7 +67,9 @@ docs/                       swagger (generated — do not edit by hand)
 GET    /health
 GET    /swagger/
 
-GET    /api/v1/contexts
+GET    /api/v1/status                                                                     probe the kubeconfig current context
+GET    /api/v1/contexts                                                                   sorted by name
+GET    /api/v1/contexts/{ctx}/status                                                      probe one context — 404 context_not_found if unknown
 POST   /api/v1/contexts/{ctx}/resources                                                   apply YAML (server-side apply)
 GET    /api/v1/contexts/{ctx}/resources/{resource}                                        cluster-scoped list (Table)
 GET    /api/v1/contexts/{ctx}/namespaces/{ns}/resources/{resource}                        namespaced list (Table)
@@ -103,7 +105,7 @@ GET    /api/v1/contexts/{ctx}/namespaces/{ns}/pods/{name}/log                   
 
 **Response envelope.** All JSON responses: `{"data": ..., "error": ...}`. The YAML endpoint returns raw `application/yaml`.
 
-**Error mapping.** `statusFromK8sErr` maps k8s API errors to HTTP codes. 403 (RBAC forbidden) is first-class — surfaced distinctly so the UI can show "you don't have permission" rather than a generic failure.
+**Error mapping.** `statusFromK8sErr` maps k8s API errors to HTTP codes. 403 (RBAC forbidden) is first-class — surfaced distinctly so the UI can show "you don't have permission" rather than a generic failure. Connectivity failures carry a typed `code` in the envelope: `cluster_unreachable`, `cluster_timeout`, `cluster_auth` (expired credentials / missing exec plugin — never RBAC 403), plus `kubeconfig_not_found`, `kubeconfig_invalid`, `no_contexts`, `context_not_found`.
 
 **Restart mechanism.** Uses the same patch as `kubectl rollout restart` — stamps `kubectl.kubernetes.io/restartedAt` on the pod-template annotation. The timestamp is caller-supplied (Swift client sends `restartedAt`) to keep it deterministic.
 
@@ -137,6 +139,8 @@ Models/
   JSONValue.swift           flexible recursive JSON type for heterogeneous K8s fields
   APIResponse.swift         envelope decoder + APIError enum
   ContextInfo.swift         kubeconfig context info
+  ClusterStatus.swift       probe result {ready, code, message} + `.failure` → APIError
+  ContextHealth.swift       per-card picker state: probing / reachable / unreachable(APIError)
   LogWindowTarget.swift     Codable window identity for log windows
   YAMLWindowTarget.swift    Codable window identity for YAML editor windows
   Collection+Safe.swift     safe subscript extension [safe:]
@@ -144,7 +148,8 @@ Services/
   KubeAPIClient.swift       actor singleton — all HTTP calls; baseURL = http://localhost:8080
   BackendProcess.swift      embedded Go sidecar lifecycle (port selection, stdin pipe, PATH widening)
 ViewModels/
-  AppModel.swift            app-wide state: contexts, namespace, selected resource
+  AppModel.swift            app-wide state: connection phase, contexts, namespace, selected resource
+  ContextPickerModel.swift  parallel health probes + single in-flight connect for the picker grid
   ResourceListModel.swift   table loading, search, live watch stream, debounced reload (@MainActor)
   ResourceDetailModel.swift single object: JSON (eager) + YAML (lazy, only on tab switch)
   ResourceActionsModel.swift all workload actions: scale/restart/rollout/suspend/cancel/drain (@MainActor)
@@ -152,7 +157,11 @@ ViewModels/
   LogStreamModel.swift      SSE streaming, 5000-line FIFO buffer, per-container switching
   YAMLEditorModel.swift     YAML load + apply, dirty tracking
 Views/
-  SidebarView.swift         context/namespace pickers + resource type list
+  SidebarView.swift         resource type list with live counts
+  BootstrapGateView.swift   full-window connecting / failed gate with per-code tips
+  ContextPicker/
+    ContextPickerView.swift grid of kubeconfig contexts with health badges, Refresh, Back
+    ContextCardView.swift   one context card: health badge, inline error + next step
   ResourceListView.swift    generic Table view — live-watch indicator, capability-driven context menu
   ResourceDetailView.swift  detail panel: Overview / Object (JSON tree) / YAML tabs
   RolloutHistorySheet.swift revision list sheet with "Undo to this" per entry
@@ -190,6 +199,8 @@ Views/
 **Status colors.** Centralized in `ResourceColors.statusColor(_:)` in `StatusDot.swift`. Add new status strings there.
 
 **Detail view loading.** JSON object loads eagerly on row selection. YAML loads lazily — only when the YAML tab is first tapped (guarded by `guard yaml == nil`).
+
+**Context selection.** `AppModel.bootstrap()` loads contexts before probing anything. Exactly one context auto-connects; two or more enter `ConnectionPhase.selectingContext`, which `ContentView` renders as `ContextPickerView`. `AppModel.connect(to:)` is the only writer of `selectedContext`: it probes `GET /api/v1/contexts/{ctx}/status`, resets namespace and destination, then flips to `.ready`. On failure it returns the `APIError` and leaves the phase alone so the card shows the error inline. The toolbar context pill (`ScopePickerPills.swift`) calls `showContextPicker()`; `hasConnectedContext` gates the picker's Back button. Context names are percent-encoded per path segment (including `/`) because EKS ARN names contain slashes.
 
 **Namespace scoping.** `AppModel.namespaceParam` is `nil` for "All Namespaces" (cluster-scoped list path) and the namespace string otherwise. Cluster-scoped resources (`scope == .cluster`) always pass `nil` regardless.
 
