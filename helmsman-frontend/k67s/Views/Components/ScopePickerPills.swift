@@ -116,9 +116,10 @@ private struct ScopePickerToolbarModifier: ViewModifier {
 }
 
 extension View {
-    /// Breathing room inside the macOS toolbar chrome border.
+    /// Horizontal breathing room inside the macOS toolbar chrome border.
+    /// Keep vertical padding light — extra bottom inset reads as a fat chrome.
     func toolbarChromeInset() -> some View {
-        padding(.horizontal, 6).padding(.vertical, 5)
+        padding(.horizontal, 6).padding(.top, 3).padding(.bottom, 2)
     }
 
     func scopePickerToolbar(app: AppModel) -> some View {
