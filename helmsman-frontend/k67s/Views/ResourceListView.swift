@@ -624,25 +624,22 @@ struct ResourceListView: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItemGroup {
-            HStack(spacing: 10) {
-                if model.isWatching {
-                    Image(systemName: "dot.radiowaves.left.and.right")
-                        .foregroundStyle(.green)
-                        .help("Live updates active")
-                }
-                Toggle(isOn: $model.showWide) {
-                    Label("Wide", systemImage: "arrow.left.and.right")
-                }
-                .help("Show all columns")
-                Button {
-                    Task { await reloadAndSyncSelection() }
-                } label: {
-                    Image(systemName: "arrow.clockwise")
-                }
-                .keyboardShortcut("r")
-                .help("Refresh")
+            if model.isWatching {
+                Image(systemName: "dot.radiowaves.left.and.right")
+                    .foregroundStyle(.green)
+                    .help("Live updates active")
             }
-            .toolbarChromeInset()
+            Toggle(isOn: $model.showWide) {
+                Label("Wide", systemImage: "arrow.left.and.right")
+            }
+            .help("Show all columns")
+            Button {
+                Task { await reloadAndSyncSelection() }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .keyboardShortcut("r")
+            .help("Refresh")
         }
     }
 
