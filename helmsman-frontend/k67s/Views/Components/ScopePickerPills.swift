@@ -11,6 +11,7 @@ struct ScopePickerPills: View {
             contextMenu
             namespaceMenu
         }
+        .toolbarChromeInset()
         .onChange(of: app.selectedNamespace) { _, _ in
             Task { await app.reloadSidebarCounts() }
         }
@@ -115,6 +116,11 @@ private struct ScopePickerToolbarModifier: ViewModifier {
 }
 
 extension View {
+    /// Breathing room inside the macOS toolbar chrome border.
+    func toolbarChromeInset() -> some View {
+        padding(.horizontal, 6).padding(.vertical, 5)
+    }
+
     func scopePickerToolbar(app: AppModel) -> some View {
         modifier(ScopePickerToolbarModifier(app: app))
     }
