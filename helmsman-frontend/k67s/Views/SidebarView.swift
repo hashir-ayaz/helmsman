@@ -6,12 +6,10 @@ struct SidebarView: View {
     var body: some View {
         List(selection: $app.selectedDestination) {
             Section("General") {
-                Label("Overview", systemImage: "square.grid.2x2")
-                    .labelStyle(.titleAndIcon)
+                sidebarLabel("Overview", systemImage: "square.grid.2x2")
                     .tag(SidebarDestination.overview)
 
-                Label("Port Forwards", systemImage: "arrow.left.arrow.right")
-                    .labelStyle(.titleAndIcon)
+                sidebarLabel("Port Forwards", systemImage: "arrow.left.arrow.right")
                     .badge(app.portForwards.activeCount >= 1 ? app.portForwards.activeCount : 0)
                     .tag(SidebarDestination.portForwards)
             }
@@ -21,8 +19,7 @@ struct SidebarView: View {
                 if !items.isEmpty {
                     Section(section.rawValue) {
                         ForEach(items) { resource in
-                            Label(resource.title, systemImage: resource.symbol)
-                                .labelStyle(.titleAndIcon)
+                            sidebarLabel(resource.title, systemImage: resource.symbol)
                                 .badge(sidebarBadge(for: resource.resource))
                                 .tag(SidebarDestination.resource(resource))
                         }
@@ -31,6 +28,7 @@ struct SidebarView: View {
             }
         }
         .listStyle(.sidebar)
+        .tint(.accentColor)
         .frame(minWidth: 215)
         .task(id: app.selectedContext) {
             while !Task.isCancelled {
@@ -38,6 +36,18 @@ struct SidebarView: View {
                 try? await Task.sleep(for: .seconds(2))
             }
         }
+    }
+
+    /// Title stays primary; icon follows System Settings → Appearance → Accent color.
+    private func sidebarLabel(_ title: String, systemImage: String) -> some View {
+        Label {
+            Text(title)
+        } icon: {
+            Image(systemName: systemImage)
+                .foregroundStyle(.accentColor)
+                .symbolRenderingMode(.monochrome)
+        }
+        .labelStyle(.titleAndIcon)
     }
 
     /// `0` hides the badge; avoids wrapping `Label` in an `HStack`, which
