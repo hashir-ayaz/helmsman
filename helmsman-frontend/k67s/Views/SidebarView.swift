@@ -7,17 +7,13 @@ struct SidebarView: View {
         List(selection: $app.selectedDestination) {
             Section("General") {
                 Label("Overview", systemImage: "square.grid.2x2")
+                    .labelStyle(.titleAndIcon)
                     .tag(SidebarDestination.overview)
-                HStack {
-                    Label("Port Forwards", systemImage: "arrow.left.arrow.right")
-                    Spacer(minLength: 8)
-                    if app.portForwards.activeCount >= 1 {
-                        Text("\(app.portForwards.activeCount)")
-                            .font(.caption.monospacedDigit())
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .tag(SidebarDestination.portForwards)
+
+                Label("Port Forwards", systemImage: "arrow.left.arrow.right")
+                    .labelStyle(.titleAndIcon)
+                    .badge(app.portForwards.activeCount >= 1 ? app.portForwards.activeCount : 0)
+                    .tag(SidebarDestination.portForwards)
             }
 
             ForEach(ResourceSection.allCases, id: \.self) { section in
@@ -25,16 +21,10 @@ struct SidebarView: View {
                 if !items.isEmpty {
                     Section(section.rawValue) {
                         ForEach(items) { resource in
-                            HStack {
-                                Label(resource.title, systemImage: resource.symbol)
-                                Spacer(minLength: 8)
-                                if let count = app.sidebarCounts.counts[resource.resource], count >= 1 {
-                                    Text("\(count)")
-                                        .font(.caption.monospacedDigit())
-                                        .foregroundStyle(.secondary)
-                                }
-                            }
-                            .tag(SidebarDestination.resource(resource))
+                            Label(resource.title, systemImage: resource.symbol)
+                                .labelStyle(.titleAndIcon)
+                                .badge(sidebarBadge(for: resource.resource))
+                                .tag(SidebarDestination.resource(resource))
                         }
                     }
                 }
@@ -48,5 +38,12 @@ struct SidebarView: View {
                 try? await Task.sleep(for: .seconds(2))
             }
         }
+    }
+
+    /// `0` hides the badge; avoids wrapping `Label` in an `HStack`, which
+    /// breaks SF Symbol redraw during sidebar List cell recycling.
+    private func sidebarBadge(for resource: String) -> Int {
+        guard let count = app.sidebarCounts.counts[resource], count >= 1 else { return 0 }
+        return count
     }
 }
