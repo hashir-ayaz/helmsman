@@ -44,7 +44,7 @@ struct SidebarView: View {
             Text(title)
         } icon: {
             Image(systemName: systemImage)
-                .foregroundStyle(.accentColor)
+                .foregroundStyle(.tint)
                 .symbolRenderingMode(.monochrome)
         }
         .labelStyle(.titleAndIcon)
