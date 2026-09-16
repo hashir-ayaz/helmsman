@@ -8,6 +8,7 @@ final class SidebarCountsModel {
     private var loadGeneration = 0
 
     func set(resource: String, count: Int) {
+        guard counts[resource] != count else { return }
         counts[resource] = count
     }
 
@@ -41,6 +42,7 @@ final class SidebarCountsModel {
         }
 
         guard generation == loadGeneration else { return }
+        guard results != counts else { return }
         counts = results
     }
 }
